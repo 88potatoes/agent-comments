@@ -1,5 +1,5 @@
 {
-  "name": "agent-comments-2",
+  "name": "@88potatoes/agent-comments",
   "version": "1.0.0",
   "description": "Inline comment system for code reviews — CLI + nvim plugin",
   "keywords": [

@@ -29,7 +29,7 @@ export function wordWrap(text: string, maxWidth: number): string[] {
 export function formatDefault(comments: CommentEntity[]): string {
   const header = "ID\tFile:Line\tMessage\tStatus";
   const body = comments
-    .map((c) => `${c.id}\t${c.file}:${c.startLine}-${c.endLine}\t${c.message}\t${c.status}`)
+    .map((c) => `${c.id.slice(0, 8)}\t${c.file}:${c.startLine}-${c.endLine}\t${c.message}\t${c.status}`)
     .join("\n");
   return body.length > 0 ? `${header}\n${body}` : "";
 }
