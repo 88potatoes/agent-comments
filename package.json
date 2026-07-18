@@ -23,7 +23,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:better-sqlite3 --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint",
@@ -35,11 +35,14 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "ink": "^7.1.1",
+    "react": "^19.2.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^26.0.0",
+    "@types/react": "^19.2.17",
     "esbuild": "^0.28.1",
     "husky": "^9.1.7",
     "oxfmt": "^0.57.0",

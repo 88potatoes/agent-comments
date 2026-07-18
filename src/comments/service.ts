@@ -30,6 +30,11 @@ export class CommentService {
     return commentEntity;
   }
 
+  async setStatus(id: string, status: CommentStatus): Promise<CommentEntity> {
+    const fullId = await this.commentsRepo.resolveCommentId(id);
+    return this.commentsRepo.updateComment({ id: fullId, status });
+  }
+
   async deleteComment(id: string): Promise<void> {
     const fullId = await this.commentsRepo.resolveCommentId(id);
     await this.commentsRepo.deleteComment(fullId);

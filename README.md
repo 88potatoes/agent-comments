@@ -1,6 +1,6 @@
 # agent-comments
 
-**Review comments that live in your editor, not a pull request.**
+**CLI for telling agents what to do**
 
 Add, resolve, and track inline code comments — locally, offline, before you push. CLI-first, stored in SQLite, composable with any tool that speaks JSON.
 

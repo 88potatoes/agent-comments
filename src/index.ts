@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { render } from "ink";
+import React from "react";
 
 import { CommentStatus } from "./comments/comments.domain.ts";
 import { CommentRepo } from "./comments/repo.ts";
@@ -6,6 +8,7 @@ import { CommentService } from "./comments/service.ts";
 import { getDbPath } from "./lib/db.ts";
 import { formatDefault, formatJson, formatGraph, wordWrap } from "./lib/format.ts";
 import { LineRangeType, parseLineInput } from "./lib/helpers.ts";
+import App from "./gui/app.tsx";
 
 export { formatDefault, formatJson, formatGraph, wordWrap };
 
@@ -179,6 +182,19 @@ program
           console.log(formatDefault(comments));
         }
       }
+    }),
+  );
+
+program
+  .command("gui")
+  .description("Open interactive TUI")
+  .action(
+    wrap(async () => {
+      if (!process.stdout.isTTY || !process.stdin.isTTY) {
+        throw new Error("gui requires an interactive terminal");
+      }
+      const { waitUntilExit } = render(React.createElement(App, { service }));
+      await waitUntilExit();
     }),
   );
 
