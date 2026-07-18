@@ -31,7 +31,8 @@ function wrap<T extends unknown[]>(handler: (...args: T) => Promise<void>) {
 program
   .name("agent-comments")
   .version("1.0.0")
-  .description("Inline comment system for code reviews");
+  .description("Inline comment system for code reviews")
+  .addHelpText("after", "\nAliases: aco → agent-comments, ls/get/list → get");
 
 program
   .command("add <file> <lines> <message>")
@@ -134,6 +135,8 @@ clean.action(
 
 program
   .command("get")
+  .alias("list")
+  .alias("ls")
   .description("Get comments")
   .option("-f, --file <file>", "Filter by file path")
   .option("-s, --status <status>", "Filter by status: resolved, active, draft, or all (default: active)")
@@ -163,10 +166,18 @@ program
       if (options.view === "json") {
         console.log(formatJson(comments));
       } else if (options.view === "graph") {
-        const highlight = !!(process.stdout.isTTY && !process.env.NO_COLOR);
-        console.log(formatGraph(comments, 80, highlight));
+        if (comments.length === 0) {
+          console.log("No comments found.");
+        } else {
+          const highlight = !!(process.stdout.isTTY && !process.env.NO_COLOR);
+          console.log(formatGraph(comments, 80, highlight));
+        }
       } else {
-        console.log(formatDefault(comments));
+        if (comments.length === 0) {
+          console.log("No comments found.");
+        } else {
+          console.log(formatDefault(comments));
+        }
       }
     }),
   );
