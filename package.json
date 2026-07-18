@@ -1,0 +1,58 @@
+{
+  "name": "agent-comments-2",
+  "version": "1.0.0",
+  "description": "Inline comment system for code reviews — CLI + nvim plugin",
+  "keywords": [
+    "code-review",
+    "comments",
+    "cli"
+  ],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "bin": {
+    "agent-comments": "dist/agent-comments.mjs",
+    "aco": "dist/agent-comments.mjs"
+  },
+  "files": [
+    "dist/",
+    "package.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:better-sqlite3 --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "prepublishOnly": "pnpm build && pnpm test",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^26.0.0",
+    "esbuild": "^0.28.1",
+    "husky": "^9.1.7",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "oxlint-tsgolint": "^0.24.0",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.9"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "better-sqlite3"
+    ]
+  }
+}
