@@ -76,10 +76,10 @@ describe("formatDefault", () => {
     const lines = output.split("\n");
     expect(lines).toHaveLength(4);
     expect(lines[1]).toContain(
-      "550e8400-e29b-41d4-a716-446655440000\tsrc/foo.ts:1-5\tfix this\tactive",
+      "550e8400\tsrc/foo.ts:1-5\tfix this\tactive",
     );
     expect(lines[2]).toContain(
-      "660e8400-e29b-41d4-a716-446655440001\tsrc/bar.ts:10-10\tdone\tresolved",
+      "660e8400\tsrc/bar.ts:10-10\tdone\tresolved",
     );
   });
 
