@@ -186,14 +186,15 @@ program
   );
 
 program
-  .command("gui")
+  .command("tui")
+  .alias("t")
   .description("Open interactive TUI")
   .action(
     wrap(async () => {
       if (!process.stdout.isTTY || !process.stdin.isTTY) {
-        throw new Error("gui requires an interactive terminal");
+        throw new Error("tui requires an interactive terminal");
       }
-      const { waitUntilExit } = render(React.createElement(App, { service }));
+      const { waitUntilExit } = render(React.createElement(App, { service }), { alternateScreen: true });
       await waitUntilExit();
     }),
   );

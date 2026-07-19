@@ -38,7 +38,7 @@ const App: React.FC<AppProps> = ({ service }) => {
   const [comments, setComments] = useState<CommentEntity[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
-  const [mode, setMode] = useState<'normal' | 'filter' | 'confirmDelete'>('normal');
+  const [mode, setMode] = useState<'normal' | 'filter'>('normal');
   const [filterInput, setFilterInput] = useState('');
   const { stdout } = useStdout();
 
@@ -67,8 +67,8 @@ const App: React.FC<AppProps> = ({ service }) => {
   // layout
   const termRows = stdout?.rows ?? 24;
   const termCols = stdout?.columns ?? 80;
-  const headerHeight = 2; // title + column header
-  const footerHeight = mode === 'filter' ? 3 : 2;
+  const headerHeight = 2;
+  const footerHeight = mode === 'filter' ? 3 : 0;
   const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
 
   const clampedIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
@@ -100,24 +100,6 @@ const App: React.FC<AppProps> = ({ service }) => {
       return;
     }
 
-    // ── confirm-delete mode ──
-    if (mode === 'confirmDelete') {
-      if (input === 'y' || input === 'Y') {
-        const c = filtered[clampedIndex];
-        if (c) {
-          service
-            .deleteComment(c.id.slice(0, 8))
-            .then(() => loadComments())
-            .then(() =>
-              setSelectedIndex((i) => Math.min(i, Math.max(0, filtered.length - 2))),
-            )
-            .catch(() => {});
-        }
-      }
-      setMode('normal');
-      return;
-    }
-
     // ── normal mode ──
     if (key.upArrow || input === 'k') {
       setSelectedIndex((i) => Math.max(0, i - 1));
@@ -133,8 +115,6 @@ const App: React.FC<AppProps> = ({ service }) => {
       } else if (c.status === CommentStatus.Resolved) {
         service.unresolveComment(c.id.slice(0, 8)).then(() => loadComments()).catch(() => {});
       }
-    } else if (input === 'd') {
-      if (filtered.length > 0) setMode('confirmDelete');
     } else if (input === '/') {
       setMode('filter');
       setFilterInput(filter);
@@ -184,19 +164,17 @@ const App: React.FC<AppProps> = ({ service }) => {
 
         return (
           <Box key={c.id}>
-            <Text bold={isSelected} color={isSelected ? 'cyan' : statusColor(c.status)}>
+            <Text inverse={isSelected} color={isSelected ? undefined : statusColor(c.status)}>
               {prefix}
             </Text>
             <Text
-              bold={isSelected}
-              color={isSelected ? 'cyan' : undefined}
+              inverse={isSelected}
               dimColor={!isSelected && c.status === CommentStatus.Resolved}
             >
               {fileCol}
             </Text>
             <Text
-              bold={isSelected}
-              color={isSelected ? 'cyan' : undefined}
+              inverse={isSelected}
               dimColor={!isSelected && c.status === CommentStatus.Resolved}
             >
               {' '}{msg}
@@ -228,29 +206,15 @@ const App: React.FC<AppProps> = ({ service }) => {
       )}
 
       {/* footer */}
-      <Box marginTop={1}>
-        {mode === 'filter' ? (
-          <Box flexDirection="column">
-            <Text>
-              Filter: <Text color="yellow">{filterInput}</Text>
-              <Text dimColor>█</Text>
-            </Text>
-            <Text dimColor>  Enter apply  |  Esc cancel</Text>
-          </Box>
-        ) : mode === 'confirmDelete' ? (
+      {mode === 'filter' && (
+        <Box marginTop={1} flexDirection="column">
           <Text>
-            Delete{' '}
-            <Text color="red">{filtered[clampedIndex]?.id.slice(0, 8)}</Text>
-            ? <Text bold>y</Text>/<Text dimColor>n</Text>
+            Filter: <Text color="yellow">{filterInput}</Text>
+            <Text dimColor>█</Text>
           </Text>
-        ) : (
-          <Box flexDirection="column">
-            <Text dimColor>
-              j/k \u2191\u2193 nav  |  r toggle resolve  |  d delete  |  / filter  |  q quit
-            </Text>
-          </Box>
-        )}
-      </Box>
+          <Text dimColor>  Enter apply  |  Esc cancel</Text>
+        </Box>
+      )}
     </Box>
   );
 };
