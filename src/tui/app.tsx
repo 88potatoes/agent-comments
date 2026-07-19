@@ -6,6 +6,7 @@ import { useMutateResolveComment } from './hooks/comments/useMutateResolveCommen
 import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveComment.ts';
 import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
 import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.tsx';
+import { GlobalProviders } from './GlobalProviders.tsx';
 
 // ── App ──────────────────────────────────────────────────────────────
 
@@ -109,7 +110,8 @@ const App: React.FC = () => {
   const showScrollBottom = endIdx < filtered.length;
 
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <GlobalProviders>
+      <Box flexDirection="column" paddingX={1}>
       {/* title */}
       <Box>
         <Text bold>agent-comments</Text>
@@ -190,7 +192,8 @@ const App: React.FC = () => {
           <Text dimColor>  Enter apply  |  Esc cancel</Text>
         </Box>
       )}
-    </Box>
+      </Box>
+    </GlobalProviders>
   );
 };
 

@@ -1,11 +1,9 @@
 import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { CommentStatus } from "./comments/comments.domain.ts";
-import { CommentRepo } from "./comments/repo.ts";
-import { CommentService } from "./comments/service.ts";
+import { commentService } from "./comments/service.ts";
 import { getDbPath } from "./lib/db.ts";
 import { formatDefault, formatJson, formatGraph, wordWrap } from "./lib/format.ts";
 import { LineRangeType, parseLineInput } from "./lib/helpers.ts";
@@ -14,10 +12,6 @@ import App from "./tui/app.tsx";
 export { formatDefault, formatJson, formatGraph, wordWrap };
 
 const program = new Command();
-
-const service = new CommentService({
-  commentsRepo: CommentRepo.instance,
-});
 
 function wrap<T extends unknown[]>(handler: (...args: T) => Promise<void>) {
   return async (...args: T) => {
@@ -51,7 +45,7 @@ program
         lineRange.type === LineRangeType.Single ? lineRange.line : lineRange.endLine;
       const label = startLine === endLine ? `${startLine}` : `${startLine}-${endLine}`;
 
-      const comment = await service.addComment({
+      const comment = await commentService.addComment({
         file,
         startLine,
         endLine,
@@ -69,7 +63,7 @@ program
   .description("Delete a comment")
   .action(
     wrap(async (commentId: string) => {
-      await service.deleteComment(commentId);
+      await commentService.deleteComment(commentId);
       console.log(`Deleted ${commentId.slice(0, 8)}`);
     }),
   );
@@ -82,13 +76,13 @@ program
   .action(
     wrap(async (commentIds: string[], options: { all?: boolean }) => {
       if (options.all) {
-        const count = await service.resolveAll();
+        const count = await commentService.resolveAll();
         console.log(`Resolved ${count} comment${count === 1 ? "" : "s"}`);
       } else if (commentIds.length === 0) {
         throw new Error("Provide comment IDs or use --all");
       } else {
         for (const id of commentIds) {
-          await service.resolveComment(id);
+          await commentService.resolveComment(id);
           console.log(`Resolved ${id.slice(0, 8)}`);
         }
       }
@@ -101,7 +95,7 @@ program
   .action(
     wrap(async (commentIds: string[]) => {
       for (const id of commentIds) {
-        await service.unresolveComment(id);
+        await commentService.unresolveComment(id);
         console.log(`Unresolved ${id.slice(0, 8)}`);
       }
     }),
@@ -114,7 +108,7 @@ clean
   .description("Delete all resolved comments")
   .action(
     wrap(async () => {
-      const count = await service.clearResolved();
+      const count = await commentService.clearResolved();
       console.log(`Cleared ${count} resolved comment${count === 1 ? "" : "s"}`);
     }),
   );
@@ -124,7 +118,7 @@ clean
   .description("Delete all unresolved (active) comments")
   .action(
     wrap(async () => {
-      const count = await service.clearUnresolved();
+      const count = await commentService.clearUnresolved();
       console.log(`Cleared ${count} unresolved comment${count === 1 ? "" : "s"}`);
     }),
   );
@@ -132,7 +126,7 @@ clean
 // Default: `agent-comments clean` does same as `agent-comments clean resolved`
 clean.action(
   wrap(async () => {
-    const count = await service.clearResolved();
+    const count = await commentService.clearResolved();
     console.log(`Cleared ${count} resolved comment${count === 1 ? "" : "s"}`);
   }),
 );
@@ -165,7 +159,7 @@ program
         throw new Error(`Invalid status: "${options.status}". Use resolved, active, draft, or all.`);
       }
 
-      const comments = await service.getAllComments(filter);
+      const comments = await commentService.getAllComments(filter);
 
       if (options.view === "json") {
         console.log(formatJson(comments));
@@ -196,9 +190,7 @@ program
         throw new Error("tui requires an interactive terminal");
       }
       const { waitUntilExit } = render(
-        React.createElement(QueryClientProvider, { client: new QueryClient() },
-          React.createElement(App)
-        ),
+        React.createElement(App),
         { alternateScreen: true }
       );
       await waitUntilExit();
