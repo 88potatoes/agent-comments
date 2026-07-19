@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { CommentStatus } from "../comments/comments.domain.ts";
+import { CommentSource, CommentStatus } from "../comments/comments.domain.ts";
 
 import { wordWrap, formatDefault, formatJson, formatGraph } from "./format.ts";
 
 const active = CommentStatus.Active;
 const resolved = CommentStatus.Resolved;
+const local = CommentSource.Local;
+const github = CommentSource.GitHub;
 
 const sampleComments = [
   {
@@ -15,6 +17,10 @@ const sampleComments = [
     endLine: 5,
     message: "fix this",
     status: active,
+    source: local,
+    externalId: null,
+    author: null,
+    url: null,
     createdAt: "",
     updatedAt: "",
   },
@@ -25,6 +31,10 @@ const sampleComments = [
     endLine: 10,
     message: "done",
     status: resolved,
+    source: github,
+    externalId: 123,
+    author: "octocat",
+    url: "https://github.com/owner/repo/pull/1#discussion_r123",
     createdAt: "",
     updatedAt: "",
   },
@@ -36,6 +46,10 @@ const sampleComments = [
     message:
       "a very long message that should wrap at eighty characters when displayed in the table view format",
     status: active,
+    source: local,
+    externalId: null,
+    author: null,
+    url: null,
     createdAt: "",
     updatedAt: "",
   },
@@ -75,18 +89,20 @@ describe("formatDefault", () => {
     const output = formatDefault(sampleComments);
     const lines = output.split("\n");
     expect(lines).toHaveLength(4);
+    // local comment: source icon is space, no author
     expect(lines[1]).toContain(
-      "550e8400\tsrc/foo.ts:1-5\tfix this\tactive",
+      "550e8400\t \tsrc/foo.ts:1-5\tfix this\tactive",
     );
+    // github comment: source icon + @author
     expect(lines[2]).toContain(
-      "660e8400\tsrc/bar.ts:10-10\tdone\tresolved",
+      "660e8400\t @octocat\tsrc/bar.ts:10-10\tdone\tresolved",
     );
   });
 
   it("includes a header line", () => {
     const output = formatDefault(sampleComments);
     const lines = output.split("\n");
-    expect(lines[0]).toBe("ID\tFile:Line\tMessage\tStatus");
+    expect(lines[0]).toBe("ID\tSource\tFile:Line\tMessage\tStatus");
   });
 
   it("returns empty string for no comments", () => {
@@ -114,6 +130,7 @@ describe("formatJson", () => {
       endLine: 5,
       message: "fix this",
       status: "active",
+      source: "local",
     });
   });
 });

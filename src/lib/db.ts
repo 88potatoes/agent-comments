@@ -30,6 +30,7 @@ export function getDbPath(): string {
 }
 
 const dbPath = getDbPath();
+export { getRepoRoot };
 export const db: DB = new Database(dbPath);
 
 // WAL mode for better concurrent reads
@@ -43,10 +44,30 @@ db.exec(`
     endLine INTEGER NOT NULL,
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'resolved', 'draft')),
+    source TEXT NOT NULL DEFAULT 'local',
+    externalId INTEGER,
+    author TEXT,
+    url TEXT,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
   )
 `);
+
+// Migrations: add columns added after initial release
+const migrateColumns: Array<{ name: string; type: string }> = [
+  { name: "source", type: "TEXT NOT NULL DEFAULT 'local'" },
+  { name: "externalId", type: "INTEGER" },
+  { name: "author", type: "TEXT" },
+  { name: "url", type: "TEXT" },
+];
+for (const col of migrateColumns) {
+  const hasColumn = db
+    .prepare(`SELECT COUNT(*) as cnt FROM pragma_table_info('comments') WHERE name = ?`)
+    .get(col.name) as { cnt: number };
+  if (hasColumn.cnt === 0) {
+    db.exec(`ALTER TABLE comments ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
 
 // Migrate older schemas whose CHECK constraint did not allow 'draft'.
 // SQLite can't ALTER a CHECK in place, so rebuild the table.

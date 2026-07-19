@@ -62,11 +62,11 @@ describe("error cases", () => {
     const testDb = new Database(dbPath);
     const now = new Date().toISOString();
     testDb
-      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run("aaaaaa00-0000-0000-0000-000000000000", "src/main.ts", 11, 11, "aaa comment", "active", now, now);
+      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run("aaaaaa00-0000-0000-0000-000000000000", "src/main.ts", 11, 11, "aaa comment", "active", "local", null, null, null, now, now);
     testDb
-      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run("aaaabb00-0000-0000-0000-000000000000", "src/main.ts", 22, 22, "aab comment", "active", now, now);
+      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run("aaaabb00-0000-0000-0000-000000000000", "src/main.ts", 22, 22, "aab comment", "active", "local", null, null, null, now, now);
     testDb.close();
     expect(() => cli(["resolve", "aaa"], dir)).toThrow("Ambiguous");
   });

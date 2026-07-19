@@ -66,8 +66,8 @@ export class CommentRepo {
     const id = crypto.randomUUID();
 
     db.prepare(
-      `INSERT INTO comments (id, file, startLine, endLine, message, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO comments (id, file, startLine, endLine, message, status, source, externalId, author, url, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       comment.file,
@@ -75,6 +75,10 @@ export class CommentRepo {
       comment.endLine,
       comment.message,
       comment.status,
+      comment.source ?? "local",
+      comment.externalId ?? null,
+      comment.author ?? null,
+      comment.url ?? null,
       now,
       now,
     );
@@ -86,6 +90,10 @@ export class CommentRepo {
       endLine: comment.endLine,
       message: comment.message,
       status: comment.status,
+      source: comment.source ?? "local",
+      externalId: comment.externalId ?? null,
+      author: comment.author ?? null,
+      url: comment.url ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -99,7 +107,7 @@ export class CommentRepo {
     const merged = { ...existing, ...updates, updatedAt: now };
 
     db.prepare(
-      `UPDATE comments SET file = ?, startLine = ?, endLine = ?, message = ?, status = ?, updatedAt = ?
+      `UPDATE comments SET file = ?, startLine = ?, endLine = ?, message = ?, status = ?, source = ?, externalId = ?, author = ?, url = ?, updatedAt = ?
        WHERE id = ?`,
     ).run(
       merged.file,
@@ -107,6 +115,10 @@ export class CommentRepo {
       merged.endLine,
       merged.message,
       merged.status,
+      merged.source,
+      merged.externalId,
+      merged.author,
+      merged.url,
       merged.updatedAt,
       id,
     );
@@ -119,6 +131,13 @@ export class CommentRepo {
     db.prepare("DELETE FROM comments WHERE id = ?").run(id);
   }
 
+  async findByExternalId(externalId: number): Promise<CommentEntity | null> {
+    const row = db
+      .prepare("SELECT * FROM comments WHERE externalId = ?")
+      .get(externalId) as CommentRecord | undefined;
+    return row ? this.toDomain(row) : null;
+  }
+
   toDomain(comment: CommentRecord): CommentEntity {
     return {
       id: comment.id,
@@ -126,7 +145,11 @@ export class CommentRepo {
       startLine: comment.startLine,
       endLine: comment.endLine,
       message: comment.message,
-      status: comment.status,
+      status: comment.status as CommentEntity["status"],
+      source: comment.source as CommentEntity["source"],
+      externalId: comment.externalId,
+      author: comment.author,
+      url: comment.url,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
     };

@@ -27,9 +27,13 @@ export function wordWrap(text: string, maxWidth: number): string[] {
 }
 
 export function formatDefault(comments: CommentEntity[]): string {
-  const header = "ID\tFile:Line\tMessage\tStatus";
+  const header = "ID\tSource\tFile:Line\tMessage\tStatus";
   const body = comments
-    .map((c) => `${c.id.slice(0, 8)}\t${c.file}:${c.startLine}-${c.endLine}\t${c.message}\t${c.status}`)
+    .map((c) => {
+      const sourceIcon = c.source === "github" ? "" : " ";
+      const author = c.author ? ` @${c.author}` : "";
+      return `${c.id.slice(0, 8)}\t${sourceIcon}${author}\t${c.file}:${c.startLine}-${c.endLine}\t${c.message}\t${c.status}`;
+    })
     .join("\n");
   return body.length > 0 ? `${header}\n${body}` : "";
 }
@@ -68,7 +72,8 @@ export function formatGraph(
     const shortId = formatId(c.id.slice(0, 8), highlight);
     const linesLabel = c.startLine === c.endLine ? `${c.startLine}` : `${c.startLine}-${c.endLine}`;
     const fileLine = `${c.file}:${linesLabel}`;
-    const header = `${icon} ${shortId}  ${fileLine}`;
+    const sourceTag = c.source === "github" ? `  @${c.author ?? "unknown"}` : "";
+    const header = `${icon} ${shortId}  ${fileLine}${sourceTag}`;
     const lines: string[] = [header];
     const continuationIndent = 12;
     const wrapped = wordWrap(c.message, messageWidth);

@@ -1,10 +1,12 @@
 import {
   CommentEntity,
+  CommentSource,
   CommentStatus,
   CreateCommentEntityInput,
   OptionalField,
 } from "./comments.domain.ts";
 import { CommentRepo } from "./repo.ts";
+import { fetchPrComments, type ImportResult } from "./gh-import.ts";
 
 export class CommentService {
   private constructor() {}
@@ -71,6 +73,44 @@ export class CommentService {
       status: CommentStatus.Active,
     });
     return commentEntity;
+  }
+
+  async importGitHubComments(
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<ImportResult> {
+    const ghComments = fetchPrComments(owner, repo, prNumber);
+    const prUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}`;
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const gh of ghComments) {
+      const existing = await this.commentsRepo.findByExternalId(gh.id);
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const line = gh.line ?? gh.original_line ?? 0;
+      const body = gh.body || "(no comment body)";
+
+      await this.commentsRepo.createComment({
+        file: gh.path,
+        startLine: line,
+        endLine: line,
+        message: body,
+        status: CommentStatus.Active,
+        source: CommentSource.GitHub,
+        externalId: gh.id,
+        author: gh.user?.login ?? null,
+        url: gh.html_url,
+      });
+      imported++;
+    }
+
+    return { imported, skipped, total: ghComments.length };
   }
 
   async clearResolved(): Promise<number> {

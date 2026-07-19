@@ -11,6 +11,10 @@ export type CommentRecord = {
   endLine: number;
   message: string;
   status: CommentStatus;
+  source: string;
+  externalId: number | null;
+  author: string | null;
+  url: string | null;
   createdAt: string;
   updatedAt: string;
 };
