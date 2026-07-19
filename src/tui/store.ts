@@ -3,10 +3,10 @@ import { loadSettings, saveSettings } from './settings.ts';
 
 // ── types ──────────────────────────────────────────────────────
 
-export type TuiMode = 'normal' | 'filter' | 'popup' | 'help';
+export type InputMode = 'normal' | 'filter' | 'popup' | 'help';
 
 export type TuiState = {
-  mode: TuiMode;
+  inputMode: InputMode;
   selectedIndex: number;
   filter: string;
   showResolved: boolean;
@@ -25,6 +25,16 @@ export type TuiKey = {
   tab?: boolean;
 };
 
+// ── actions ────────────────────────────────────────────────────
+
+interface TuiActions {
+  setInputMode: (inputMode: InputMode) => void;
+  setFilter: (filter: string) => void;
+  setSelectedIndex: (selectedIndex: number) => void;
+  toggleShowResolved: () => void;
+  applyPatch: (patch: Partial<TuiState>) => void;
+}
+
 // ── helpers ────────────────────────────────────────────────────
 
 export function clampIndex(idx: number, count: number): number {
@@ -37,7 +47,7 @@ export function clampIndex(idx: number, count: number): number {
 const settings = loadSettings();
 
 const initialState: TuiState = {
-  mode: 'normal',
+  inputMode: 'normal',
   selectedIndex: 0,
   filter: '',
   showResolved: settings.showResolved,
@@ -46,7 +56,15 @@ const initialState: TuiState = {
 
 // ── store ──────────────────────────────────────────────────────
 
-export const useTuiStore = create<TuiState>(() => initialState);
+export const useTuiStore = create<TuiState & TuiActions>((set) => ({
+  ...initialState,
+
+  setInputMode: (inputMode) => set({ inputMode }),
+  setFilter: (filter) => set({ filter }),
+  setSelectedIndex: (selectedIndex) => set({ selectedIndex }),
+  toggleShowResolved: () => set((s) => ({ showResolved: !s.showResolved, selectedIndex: 0 })),
+  applyPatch: (patch) => set(patch),
+}));
 
 // ── persistence ────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ import { reduceKey } from './useHandleInput.ts';
 
 function fresh(): TuiState {
   return {
-    mode: 'normal',
+    inputMode: 'normal',
     selectedIndex: 0,
     filter: '',
     showResolved: true,
@@ -89,13 +89,13 @@ describe('reduceKey', () => {
 
     it('/ enters filter mode', () => {
       const patch = act(fresh(), key('/'));
-      expect(patch).toEqual({ mode: 'filter' });
+      expect(patch).toEqual({ inputMode: 'filter' });
     });
 
     it('/ enters filter mode preserving current filter', () => {
       const s = { ...fresh(), filter: 'src' };
       const patch = act(s, key('/'));
-      expect(patch).toEqual({ mode: 'filter' });
+      expect(patch).toEqual({ inputMode: 'filter' });
     });
 
     it('Esc clears filter and resets selectedIndex', () => {
@@ -126,7 +126,7 @@ describe('reduceKey', () => {
 
   describe('filter mode', () => {
     it('types characters into filter', () => {
-      const s = { ...fresh(), mode: 'filter' as const };
+      const s = { ...fresh(), inputMode: 'filter' as const };
       expect(reduceKey(s, 's', key('s').key, 0)).toEqual({ filter: 's' });
       s.filter = 's';
       expect(reduceKey(s, 'r', key('r').key, 0)).toEqual({ filter: 'sr' });
@@ -135,25 +135,25 @@ describe('reduceKey', () => {
     });
 
     it('backspace removes last character', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filter: 'src' };
+      const s = { ...fresh(), inputMode: 'filter' as const, filter: 'src' };
       const patch = reduceKey(s, '', key('', { backspace: true }).key, 0);
       expect(patch).toEqual({ filter: 'sr' });
     });
 
     it('Enter exits filter mode (filter already applied live)', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filter: 'foo' };
+      const s = { ...fresh(), inputMode: 'filter' as const, filter: 'foo' };
       const patch = reduceKey(s, '', key('', { return: true }).key, 0);
-      expect(patch).toEqual({ mode: 'normal', selectedIndex: 0 });
+      expect(patch).toEqual({ inputMode: 'normal', selectedIndex: 0 });
     });
 
     it('Esc clears filter and exits', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filter: 'foo' };
+      const s = { ...fresh(), inputMode: 'filter' as const, filter: 'foo' };
       const patch = reduceKey(s, '', key('', { escape: true }).key, 0);
-      expect(patch).toEqual({ mode: 'normal', filter: '' });
+      expect(patch).toEqual({ inputMode: 'normal', filter: '' });
     });
 
     it('ignores ctrl/meta/tab input', () => {
-      const s = { ...fresh(), mode: 'filter' as const };
+      const s = { ...fresh(), inputMode: 'filter' as const };
       const patch = reduceKey(s, 'x', key('x', { ctrl: true }).key, 0);
       expect(patch).toBeNull();
     });
@@ -161,7 +161,7 @@ describe('reduceKey', () => {
 
   describe('popup mode (falls through to normal navigation)', () => {
     it('popup mode j moves down (falls through)', () => {
-      const s = { ...fresh(), mode: 'popup' as const, selectedIndex: 0 };
+      const s = { ...fresh(), inputMode: 'popup' as const, selectedIndex: 0 };
       const patch = reduceKey(s, 'j', key('j').key, 3);
       expect(patch).toEqual({ selectedIndex: 1 });
     });

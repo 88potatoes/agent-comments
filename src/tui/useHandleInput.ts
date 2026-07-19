@@ -14,9 +14,9 @@ export function reduceKey(
   totalCount: number,
 ): Partial<TuiState> | null {
   // ── filter mode ──────────────────────────────────────────
-  if (state.mode === 'filter') {
-    if (key.escape) return { mode: 'normal', filter: '' };
-    if (key.return) return { mode: 'normal', selectedIndex: 0 };
+  if (state.inputMode === 'filter') {
+    if (key.escape) return { inputMode: 'normal', filter: '' };
+    if (key.return) return { inputMode: 'normal', selectedIndex: 0 };
     if (key.backspace || key.delete) return { filter: state.filter.slice(0, -1) };
     if (input && !key.ctrl && !key.meta && !key.tab) return { filter: state.filter + input };
     return null;
@@ -27,7 +27,7 @@ export function reduceKey(
   if (key.downArrow || input === 'j') return { selectedIndex: clampIndex(state.selectedIndex + 1, totalCount) };
   if (input === 'R') return { showResolved: !state.showResolved, selectedIndex: 0 };
   if (input === '?') return null; // popup disabled
-  if (input === '/') return { mode: 'filter' };
+  if (input === '/') return { inputMode: 'filter' };
   if (key.escape && state.filter) return { filter: '', selectedIndex: 0 };
   return null;
 }
@@ -42,7 +42,7 @@ export function useHandleInput(
 
   useInput((input, key) => {
     // side-effect keys (normal mode only) — run before reduceKey
-    if (useTuiStore.getState().mode === 'normal') {
+    if (useTuiStore.getState().inputMode === 'normal') {
       if (input === 'r') {
         void queryClient.invalidateQueries({ queryKey: ['comments'] });
         return;
@@ -72,6 +72,6 @@ export function useHandleInput(
       tab: key.tab,
     }, vm.totalCount);
 
-    if (patch) useTuiStore.setState(patch);
+    if (patch) useTuiStore.getState().applyPatch(patch);
   });
 }

@@ -104,7 +104,7 @@ export function toCommentListViewModel(
   const popup = null;
   /*
   let popup: CommentPopupViewModel | null = null;
-  if (state.mode === 'popup' && filtered.length > 0) {
+  if (state.inputMode === 'popup' && filtered.length > 0) {
     const selected = filtered[clampedIndex];
     popup = {
       comment: toCommentRowViewModel(selected, false),
@@ -118,7 +118,7 @@ export function toCommentListViewModel(
     totalCount: filtered.length,
     filter: state.filter,
     showResolved: state.showResolved,
-    isFilterMode: state.mode === 'filter',
+    isFilterMode: state.inputMode === 'filter',
     rows,
     popup,
   };

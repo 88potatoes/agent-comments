@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { TuiMode } from './store.ts';
+import type { InputMode } from './store.ts';
 
 type KeymapEntry = {
   keys: string;
@@ -12,7 +12,7 @@ const globalKeymaps: KeymapEntry[] = [
   { keys: 'q', description: 'Quit' },
 ];
 
-const localKeymaps: Record<TuiMode, KeymapEntry[]> = {
+const localKeymaps: Record<InputMode, KeymapEntry[]> = {
   normal: [
     { keys: 'j / ↓', description: 'Move down' },
     { keys: 'k / ↑', description: 'Move up' },
@@ -53,7 +53,7 @@ function fuzzyMatch(query: string, text: string): boolean {
   return qi === q.length;
 }
 
-const modeLabels: Record<TuiMode, string> = {
+const modeLabels: Record<InputMode, string> = {
   normal: 'Normal',
   filter: 'Filter',
   popup: 'Popup',
@@ -61,7 +61,7 @@ const modeLabels: Record<TuiMode, string> = {
 };
 
 interface HelpScreenProps {
-  mode: TuiMode;
+  mode: InputMode;
   onClose: () => void;
 }
 
