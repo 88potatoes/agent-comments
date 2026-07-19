@@ -1,8 +1,7 @@
-import { createStore } from 'zustand/vanilla';
-import { redux } from 'zustand/middleware';
+import { create } from 'zustand';
 import { loadSettings, saveSettings } from './settings.ts';
 
-// ── state ──────────────────────────────────────────────────────
+// ── types ──────────────────────────────────────────────────────
 
 export type TuiMode = 'normal' | 'filter' | 'popup' | 'help';
 
@@ -16,25 +15,6 @@ export type TuiState = {
   commentCount: number;
 };
 
-const settings = loadSettings();
-
-const initialState: TuiState = {
-  mode: 'normal',
-  selectedIndex: 0,
-  filter: '',
-  filterInput: '',
-  showResolved: settings.showResolved,
-  popupIndex: 0,
-  commentCount: 0,
-};
-
-// ── actions ────────────────────────────────────────────────────
-
-export type TuiAction =
-  | { type: 'tui/setCommentCount'; count: number }
-  | { type: 'tui/key'; input: string; key: TuiKey }
-  | { type: 'tui/closeHelp' };
-
 export type TuiKey = {
   upArrow?: boolean;
   downArrow?: boolean;
@@ -47,111 +27,107 @@ export type TuiKey = {
   tab?: boolean;
 };
 
-// ── pure helpers ───────────────────────────────────────────────
+// ── actions (methods on store) ─────────────────────────────────
+
+interface TuiActions {
+  setCommentCount: (count: number) => void;
+  handleKey: (input: string, key: TuiKey) => void;
+  closeHelp: () => void;
+}
+
+// ── helpers ────────────────────────────────────────────────────
 
 function clampIndex(idx: number, count: number): number {
   return Math.max(0, Math.min(idx, count - 1));
 }
 
-// ── reducer ────────────────────────────────────────────────────
+// ── initial state ──────────────────────────────────────────────
 
-const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
-  switch (action.type) {
-    case 'tui/setCommentCount': {
-      return {
-        ...state,
-        commentCount: action.count,
-        selectedIndex: clampIndex(state.selectedIndex, action.count),
-      };
-    }
+const settings = loadSettings();
 
-    case 'tui/closeHelp': {
-      if (state.mode !== 'help') return state;
-      return { ...state, mode: 'normal' };
-    }
-
-    case 'tui/key': {
-      const { input, key } = action;
-      const count = state.commentCount;
-
-      // ── popup mode (commented out for now) ─────────────────
-      /*
-      if (state.mode === 'popup') {
-        if (key.escape || input === 'q') {
-          return { ...state, mode: 'normal' };
-        }
-        if (key.upArrow || input === 'k') {
-          return { ...state, popupIndex: clampPopup(state.popupIndex - 1, 99) };
-        }
-        if (key.downArrow || input === 'j') {
-          return { ...state, popupIndex: clampPopup(state.popupIndex + 1, 99) };
-        }
-        return state;
-      }
-      */
-
-      // ── filter mode ──────────────────────────────────────────
-      if (state.mode === 'filter') {
-        if (key.escape) {
-          return { ...state, mode: 'normal', filterInput: '' };
-        }
-        if (key.return) {
-          return {
-            ...state,
-            filter: state.filterInput.trim(),
-            mode: 'normal',
-            selectedIndex: 0,
-          };
-        }
-        if (key.backspace || key.delete) {
-          return { ...state, filterInput: state.filterInput.slice(0, -1) };
-        }
-        if (input && !key.ctrl && !key.meta && !key.tab) {
-          return { ...state, filterInput: state.filterInput + input };
-        }
-        return state;
-      }
-
-      // ── normal mode ──────────────────────────────────────────
-      if (key.upArrow || input === 'k') {
-        return { ...state, selectedIndex: clampIndex(state.selectedIndex - 1, count) };
-      }
-      if (key.downArrow || input === 'j') {
-        return { ...state, selectedIndex: clampIndex(state.selectedIndex + 1, count) };
-      }
-      if (input === 'R') {
-        return { ...state, showResolved: !state.showResolved, selectedIndex: 0 };
-      }
-      if (input === '?') {
-        // popup disabled for now
-        return state;
-      }
-      if (input === '/') {
-        return { ...state, mode: 'filter', filterInput: state.filter };
-      }
-      if (key.escape) {
-        if (state.filter) {
-          return { ...state, filter: '', selectedIndex: 0 };
-        }
-        return state;
-      }
-      // r, e, q/Q are side-effect keys handled externally
-      return state;
-    }
-
-    default:
-      return state;
-  }
+const initialState: TuiState = {
+  mode: 'normal',
+  selectedIndex: 0,
+  filter: '',
+  filterInput: '',
+  showResolved: settings.showResolved,
+  popupIndex: 0,
+  commentCount: 0,
 };
 
 // ── store ──────────────────────────────────────────────────────
 
-export const tuiStore = createStore(
-  redux<TuiState, TuiAction>(tuiReducer, initialState),
-);
+export const useTuiStore = create<TuiState & TuiActions>((set, get) => ({
+  ...initialState,
 
-// persist showResolved to disk whenever it changes
-tuiStore.subscribe((state, prev) => {
+  setCommentCount: (count) =>
+    set((s) => ({
+      commentCount: count,
+      selectedIndex: clampIndex(s.selectedIndex, count),
+    })),
+
+  closeHelp: () => {
+    if (get().mode === 'help') set({ mode: 'normal' });
+  },
+
+  handleKey: (input, key) => {
+    const s = get();
+    const count = s.commentCount;
+
+    // ── filter mode ──────────────────────────────────────────
+    if (s.mode === 'filter') {
+      if (key.escape) {
+        set({ mode: 'normal', filterInput: '' });
+        return;
+      }
+      if (key.return) {
+        set({ filter: s.filterInput.trim(), mode: 'normal', selectedIndex: 0 });
+        return;
+      }
+      if (key.backspace || key.delete) {
+        set({ filterInput: s.filterInput.slice(0, -1) });
+        return;
+      }
+      if (input && !key.ctrl && !key.meta && !key.tab) {
+        set({ filterInput: s.filterInput + input });
+        return;
+      }
+      return;
+    }
+
+    // ── normal mode ──────────────────────────────────────────
+    if (key.upArrow || input === 'k') {
+      set({ selectedIndex: clampIndex(s.selectedIndex - 1, count) });
+      return;
+    }
+    if (key.downArrow || input === 'j') {
+      set({ selectedIndex: clampIndex(s.selectedIndex + 1, count) });
+      return;
+    }
+    if (input === 'R') {
+      set({ showResolved: !s.showResolved, selectedIndex: 0 });
+      return;
+    }
+    if (input === '?') {
+      return; // popup disabled
+    }
+    if (input === '/') {
+      set({ mode: 'filter', filterInput: s.filter });
+      return;
+    }
+    if (key.escape) {
+      if (s.filter) {
+        set({ filter: '', selectedIndex: 0 });
+      }
+      return;
+    }
+    // r, e, q/Q are side-effect keys handled externally
+  },
+}));
+
+// ── persistence ────────────────────────────────────────────────
+
+useTuiStore.subscribe((state, prev) => {
   if (state.showResolved !== prev.showResolved) {
     saveSettings({ showResolved: state.showResolved });
   }

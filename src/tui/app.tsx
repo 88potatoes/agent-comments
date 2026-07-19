@@ -6,8 +6,7 @@ import type { CommentEntity } from '../comments/comments.domain.ts';
 import { useQueryComments } from './hooks/comments/useQueryComments.ts';
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { getRepoRoot } from '../lib/db.ts';
-import { useTuiStore } from './useTuiStore.ts';
-import { tuiStore } from './store.ts';
+import { useTuiStore } from './store.ts';
 import { toCommentListViewModel } from './comments/logic.ts';
 import { CommentList } from './comments/components/CommentList.tsx';
 
@@ -53,7 +52,7 @@ const AppInner: React.FC = () => {
   // ── sync comment count to store ──────────────────────────────────
 
   useEffect(() => {
-    tuiStore.dispatch({ type: 'tui/setCommentCount', count: vm.totalCount });
+    useTuiStore.getState().setCommentCount(vm.totalCount);
   }, [vm.totalCount]);
 
   // ── selected comment (for side effects) ──────────────────────────
@@ -91,20 +90,16 @@ const AppInner: React.FC = () => {
     }
 
     // Dispatch all other keys to the store
-    tuiStore.dispatch({
-      type: 'tui/key',
-      input,
-      key: {
-        upArrow: key.upArrow,
-        downArrow: key.downArrow,
-        return: key.return,
-        escape: key.escape,
-        backspace: key.backspace,
-        delete: key.delete,
-        ctrl: key.ctrl,
-        meta: key.meta,
-        tab: key.tab,
-      },
+    useTuiStore.getState().handleKey(input, {
+      upArrow: key.upArrow,
+      downArrow: key.downArrow,
+      return: key.return,
+      escape: key.escape,
+      backspace: key.backspace,
+      delete: key.delete,
+      ctrl: key.ctrl,
+      meta: key.meta,
+      tab: key.tab,
     });
   });
 
