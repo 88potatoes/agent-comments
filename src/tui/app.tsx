@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Box, Text, useInput, useStdout, useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
 import { spawn } from 'node:child_process';
@@ -12,6 +12,8 @@ import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { HelpScreen } from './HelpScreen.tsx';
 import { getRepoRoot } from '../lib/db.ts';
+import { useTuiStore } from './useTuiStore.ts';
+import { tuiStore } from './store.ts';
 
 // ── open in editor ───────────────────────────────────────────────
 
@@ -25,7 +27,6 @@ function openInEditor(c: CommentEntity) {
     const args = isVi ? [`+${c.startLine}`, absPath] : [absPath];
     spawn(editor, args, { stdio: 'inherit', shell: true });
   } else {
-    // Fallback: VS Code or macOS 'open'
     const codeProc = spawn('code', ['-g', `${absPath}:${c.startLine}`], { stdio: 'ignore', shell: true });
     codeProc.on('error', () => {
       spawn('open', [absPath], { stdio: 'ignore', shell: true });
@@ -33,7 +34,7 @@ function openInEditor(c: CommentEntity) {
   }
 }
 
-// ── popup actions ─────────────────────────────────────────────────
+// ── popup action type ────────────────────────────────────────────
 
 type PopupAction = {
   key: string;
@@ -42,12 +43,7 @@ type PopupAction = {
 };
 
 const AppInner: React.FC = () => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [filter, setFilter] = useState('');
-  const [showResolved, setShowResolved] = useState(true);
-  const [mode, setMode] = useState<'normal' | 'filter' | 'popup' | 'help'>('normal');
-  const [filterInput, setFilterInput] = useState('');
-  const [popupIndex, setPopupIndex] = useState(0);
+  const state = useTuiStore();
   const { stdout } = useStdout();
   const queryClient = useQueryClient();
   const { isFocused } = useFocus();
@@ -57,10 +53,28 @@ const AppInner: React.FC = () => {
   const { data: comments = [] } = useQueryComments();
 
   const resolveMutation = useMutateResolveComment();
-
   const unresolveMutation = useMutateUnresolveComment();
-
   const setStatusMutation = useMutateSetStatus();
+
+  // ── sync comment count ───────────────────────────────────────────
+
+  const filtered = useMemo(() => {
+    let result = comments;
+    if (!state.showResolved) {
+      result = result.filter((c) => c.status !== CommentStatus.Resolved);
+    }
+    if (state.filter) {
+      const f = state.filter.toLowerCase();
+      result = result.filter(
+        (c) => c.file.toLowerCase().includes(f) || c.message.toLowerCase().includes(f),
+      );
+    }
+    return result;
+  }, [comments, state.filter, state.showResolved]);
+
+  useEffect(() => {
+    tuiStore.dispatch({ type: 'tui/setCommentCount', count: filtered.length });
+  }, [filtered.length]);
 
   // ── invalidate on focus ──────────────────────────────────────────
 
@@ -70,42 +84,25 @@ const AppInner: React.FC = () => {
     }
   }, [isFocused, queryClient]);
 
-  // ── filtering ────────────────────────────────────────────────────
-
-  const filtered = useMemo(() => {
-    let result = comments;
-    if (!showResolved) {
-      result = result.filter((c) => c.status !== CommentStatus.Resolved);
-    }
-    if (filter) {
-      const f = filter.toLowerCase();
-      result = result.filter(
-        (c) => c.file.toLowerCase().includes(f) || c.message.toLowerCase().includes(f),
-      );
-    }
-    return result;
-  }, [comments, filter, showResolved]);
-
   // ── layout ───────────────────────────────────────────────────────
 
   const termRows = stdout?.rows ?? 24;
   const termCols = stdout?.columns ?? 80;
   const popupHeight = 8;
   const headerHeight = 2;
-  const footerHeight = mode === 'filter' ? 3 : mode === 'popup' ? popupHeight : 0;
+  const footerHeight = state.mode === 'filter' ? 3 : state.mode === 'popup' ? popupHeight : 0;
   const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
 
-  const clampedIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
+  const clampedIndex = Math.min(state.selectedIndex, Math.max(0, filtered.length - 1));
   const startIdx = Math.max(0, clampedIndex - Math.floor(maxVisible / 2));
   const endIdx = Math.min(filtered.length, startIdx + maxVisible);
   const visibleComments = filtered.slice(startIdx, endIdx);
 
-  // column widths
-  const prefixWidth = 12; // "● 3f8a1b2c "
+  const prefixWidth = 12;
   const fileColMax = Math.min(30, Math.floor(termCols * 0.32));
   const msgColMax = Math.max(10, termCols - prefixWidth - fileColMax - 2);
 
-  // ── popup actions ────────────────────────────────────────────────
+  // ── selected comment / popup actions ─────────────────────────────
 
   const selectedComment = filtered[clampedIndex];
 
@@ -128,7 +125,6 @@ const AppInner: React.FC = () => {
                 } else {
                   resolveMutation.mutate(shortId);
                 }
-                setMode('normal');
               },
             },
           ]
@@ -140,7 +136,6 @@ const AppInner: React.FC = () => {
               label: 'Unresolve',
               action: () => {
                 unresolveMutation.mutate(shortId);
-                setMode('normal');
               },
             },
           ]
@@ -153,17 +148,11 @@ const AppInner: React.FC = () => {
         },
       },
       {
-        key: 'c',
+        key: 'y',
         label: 'Copy ID',
         action: () => {
-          // Write the short ID to stdout so it can be piped
           process.stdout.write(shortId);
         },
-      },
-      {
-        key: 'Esc',
-        label: 'Cancel',
-        action: () => setMode('normal'),
       },
     ];
   }, [selectedComment, resolveMutation, unresolveMutation, setStatusMutation]);
@@ -171,75 +160,55 @@ const AppInner: React.FC = () => {
   // ── keyboard ─────────────────────────────────────────────────────
 
   useInput((input, key) => {
-    // help mode — handled by HelpScreen component
-    if (mode === 'help') return;
-
-    // popup mode
-    if (mode === 'popup') {
-      if (key.escape || input === 'q') {
-        setMode('normal');
-      } else if (key.upArrow || input === 'k') {
-        setPopupIndex((i) => Math.max(0, i - 1));
-      } else if (key.downArrow || input === 'j') {
-        setPopupIndex((i) => Math.min(popupActions.length - 1, i + 1));
-      } else if (key.return) {
-        const action = popupActions[popupIndex];
-        if (action) action.action();
-      } else {
-        // direct key press for any action
-        const match = popupActions.find((a) => a.key === input);
-        if (match) match.action();
+    // Side-effect keys in normal mode
+    if (state.mode === 'normal') {
+      if (input === 'r') {
+        void queryClient.invalidateQueries({ queryKey: ['comments'] });
+        return;
       }
-      return;
-    }
-
-    // filter mode
-    if (mode === 'filter') {
-      if (key.escape) {
-        setMode('normal');
-        setFilterInput('');
-      } else if (key.return) {
-        setFilter(filterInput.trim());
-        setMode('normal');
-        setSelectedIndex(0);
-      } else if (key.backspace || key.delete) {
-        setFilterInput((prev) => prev.slice(0, -1));
-      } else if (input && !key.ctrl && !key.meta && !key.tab) {
-        setFilterInput((prev) => prev + input);
+      if (input === 'e') {
+        if (selectedComment) openInEditor(selectedComment);
+        return;
       }
-      return;
-    }
-
-    // normal mode
-    if (key.upArrow || input === 'k') {
-      setSelectedIndex((i) => Math.max(0, i - 1));
-    } else if (key.downArrow || input === 'j') {
-      setSelectedIndex((i) => Math.min(filtered.length - 1, i + 1));
-    } else if (input === 'r') {
-      void queryClient.invalidateQueries({ queryKey: ['comments'] });
-    } else if (input === 'R') {
-      setShowResolved((v) => !v);
-      setSelectedIndex(0);
-    } else if (input === 'e') {
-      if (selectedComment) openInEditor(selectedComment);
-    } else if (key.return) {
-      if (filtered.length > 0) {
-        setMode('popup');
-        setPopupIndex(0);
-      }
-    } else if (input === '?') {
-      setMode('help');
-    } else if (input === '/') {
-      setMode('filter');
-      setFilterInput(filter);
-    } else if (input === 'q' || input === 'Q') {
-      process.exit(0);
-    } else if (key.escape) {
-      if (filter) {
-        setFilter('');
-        setSelectedIndex(0);
+      if (input === 'q' || input === 'Q') {
+        process.exit(0);
+        return;
       }
     }
+
+    // Side-effect keys in popup mode
+    if (state.mode === 'popup') {
+      if (key.return) {
+        const action = popupActions[state.popupIndex];
+        if (action) {
+          action.action();
+          tuiStore.dispatch({ type: 'tui/key', input: '', key: { escape: true } }); // close popup
+        }
+        return;
+      }
+      // Direct key press for any popup action
+      const match = popupActions.find((a) => a.key === input);
+      if (match) {
+        match.action();
+        if (match.key !== 'e' && match.key !== 'y') {
+          tuiStore.dispatch({ type: 'tui/key', input: '', key: { escape: true } });
+        }
+        return;
+      }
+    }
+
+    // Dispatch all other keys to the store
+    tuiStore.dispatch({ type: 'tui/key', input, key: {
+      upArrow: key.upArrow,
+      downArrow: key.downArrow,
+      return: key.return,
+      escape: key.escape,
+      backspace: key.backspace,
+      delete: key.delete,
+      ctrl: key.ctrl,
+      meta: key.meta,
+      tab: key.tab,
+    } });
   });
 
   // ── render ───────────────────────────────────────────────────────
@@ -257,8 +226,8 @@ const AppInner: React.FC = () => {
         <Text dimColor>  {repoRoot}</Text>
         <Text dimColor>  {filtered.length} comment{filtered.length !== 1 ? 's' : ''}</Text>
         <Text dimColor>  [? help]</Text>
-        {filter ? <Text color="yellow">  filter: "{filter}"</Text> : null}
-        {!showResolved && <Text color="yellow">  hiding resolved</Text>}
+        {state.filter ? <Text color="yellow">  filter: "{state.filter}"</Text> : null}
+        {!state.showResolved && <Text color="yellow">  hiding resolved</Text>}
       </Box>
 
       {/* column header */}
@@ -313,7 +282,7 @@ const AppInner: React.FC = () => {
       {filtered.length === 0 && (
         <Box>
           <Text dimColor>
-            {filter || !showResolved ? '  No matching comments' : '  No comments yet'}
+            {state.filter || !state.showResolved ? '  No matching comments' : '  No comments yet'}
           </Text>
         </Box>
       )}
@@ -325,10 +294,10 @@ const AppInner: React.FC = () => {
       )}
 
       {/* footer: filter mode */}
-      {mode === 'filter' && (
+      {state.mode === 'filter' && (
         <Box marginTop={1} flexDirection="column">
           <Text>
-            Filter: <Text color="yellow">{filterInput}</Text>
+            Filter: <Text color="yellow">{state.filterInput}</Text>
             <Text dimColor>█</Text>
           </Text>
           <Text dimColor>  Enter apply  |  Esc cancel</Text>
@@ -336,7 +305,7 @@ const AppInner: React.FC = () => {
       )}
 
       {/* footer: popup */}
-      {mode === 'popup' && selectedComment && (
+      {state.mode === 'popup' && selectedComment && (
         <Box marginTop={1} flexDirection="column" borderStyle="round" paddingX={1}>
           <Box>
             <Text bold>
@@ -350,17 +319,18 @@ const AppInner: React.FC = () => {
           </Box>
           {popupActions.map((a, i) => (
             <Box key={a.key}>
-              <Text inverse={i === popupIndex} color={i === popupIndex ? undefined : 'cyan'}>
-                {i === popupIndex ? '▶' : ' '} [{a.key}] {a.label}
+              <Text inverse={i === state.popupIndex} color={i === state.popupIndex ? undefined : 'cyan'}>
+                {i === state.popupIndex ? '▶' : ' '} [{a.key}] {a.label}
               </Text>
             </Box>
           ))}
         </Box>
       )}
+
       {/* footer: help */}
-      {mode === 'help' && (
+      {state.mode === 'help' && (
         <Box marginTop={1} borderStyle="round" paddingX={1}>
-          <HelpScreen onClose={() => setMode('normal')} />
+          <HelpScreen onClose={() => tuiStore.dispatch({ type: 'tui/closeHelp' })} />
         </Box>
       )}
       </Box>

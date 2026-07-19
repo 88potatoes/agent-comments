@@ -30,7 +30,7 @@ const keymaps: KeymapEntry[] = [
   { keys: '(popup) r', description: 'Resolve / Activate' },
   { keys: '(popup) u', description: 'Unresolve' },
   { keys: '(popup) e', description: 'Open in editor' },
-  { keys: '(popup) c', description: 'Copy ID' },
+  { keys: '(popup) y', description: 'Copy ID' },
 ];
 
 function fuzzyMatch(query: string, text: string): boolean {
