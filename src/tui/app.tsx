@@ -7,27 +7,15 @@ import { useHandleInput } from './useHandleInput.ts';
 import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
 import { useCommentListViewModel } from './comments/hooks/useCommentListViewModel.ts';
 
-// ── App ───────────────────────────────────────────────────────────
-
 const AppInner: React.FC = () => {
   const { isFocused } = useFocus();
-
-  // ── data ─────────────────────────────────────────────────────────
-
   const { vm } = useCommentListViewModel();
-
-  // ── commands (single entry point for all actions) ────────────────
-
   const commands = useCommentCommands({
     totalCommentCount: vm.totalCount,
     rows: vm.rows,
   });
 
-  // ── keyboard input ───────────────────────────────────────────────
-
   useHandleInput(commands);
-
-  // ── invalidate on focus ──────────────────────────────────────────
 
   useEffect(() => {
     if (isFocused) {
