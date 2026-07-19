@@ -11,7 +11,6 @@ import { statusIcon, statusColor } from '../helpers.tsx';
 import type {
   CommentRowViewModel,
   CommentListViewModel,
-  FilterBarViewModel,
 } from './view-model.ts';
 
 // ── fuzzy filter ───────────────────────────────────────────────
@@ -92,7 +91,6 @@ export function getPopupActionDescriptors(
 export function toCommentListViewModel(
   comments: CommentEntity[],
   state: TuiState,
-  repoRoot: string,
 ): CommentListViewModel {
   const filtered = filterComments(comments, state.filter, state.showResolved);
 
@@ -116,19 +114,12 @@ export function toCommentListViewModel(
   }
   */
 
-  // filter bar
-  let filterBar: FilterBarViewModel | null = null;
-  if (state.mode === 'filter') {
-    filterBar = { filterInput: state.filter };
-  }
-
   return {
-    repoRoot,
     totalCount: filtered.length,
     filter: state.filter,
     showResolved: state.showResolved,
+    isFilterMode: state.mode === 'filter',
     rows,
     popup,
-    filterBar,
   };
 }

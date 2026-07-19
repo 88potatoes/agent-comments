@@ -30,20 +30,13 @@ export type CommentPopupViewModel = {
   selectedActionIndex: number;
 };
 
-// ── filter bar ─────────────────────────────────────────────────
-
-export type FilterBarViewModel = {
-  filterInput: string;
-};
-
 // ── whole list ─────────────────────────────────────────────────
 
 export type CommentListViewModel = {
-  repoRoot: string;
   totalCount: number;
   filter: string;
   showResolved: boolean;
+  isFilterMode: boolean;
   rows: CommentRowViewModel[];
   popup: CommentPopupViewModel | null;
-  filterBar: FilterBarViewModel | null;
 };

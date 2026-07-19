@@ -3,12 +3,14 @@ import { Box, Text, useStdout } from 'ink';
 import type { CommentListViewModel } from '../view-model.ts';
 import { CommentRow } from './CommentRow.tsx';
 import { FilterBar } from './FilterBar.tsx';
+import { useRepoRoot } from '../../hooks/useRepoRoot.ts';
 
 type CommentListProps = {
   vm: CommentListViewModel;
 };
 
 export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
+  const repoRoot = useRepoRoot();
   const { stdout } = useStdout();
   const termRows = stdout?.rows ?? 24;
   const termCols = stdout?.columns ?? 80;
@@ -22,7 +24,7 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
   const popupHeight = 8;
   const headerHeight = 2;
   const popupActive = vm.popup !== null;
-  const filterActive = vm.filterBar !== null;
+  const filterActive = vm.isFilterMode;
   const footerHeight = filterActive ? 3 : popupActive ? popupHeight : 0;
   const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
 
@@ -54,7 +56,7 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
       {/* title */}
       <Box>
         <Text bold>agent-comments</Text>
-        <Text dimColor>  {vm.repoRoot}</Text>
+        <Text dimColor>  {repoRoot}</Text>
         <Text dimColor>  {vm.totalCount} comment{vm.totalCount !== 1 ? 's' : ''}</Text>
         <Text dimColor>  [? actions]</Text>
         {vm.filter ? <Text color="yellow">  filter: "{vm.filter}"</Text> : null}
@@ -100,7 +102,7 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
       )}
 
       {/* footer: filter */}
-      {vm.filterBar && <FilterBar filterBar={vm.filterBar} />}
+      {vm.isFilterMode && <FilterBar filter={vm.filter} />}
     </Box>
   );
 };

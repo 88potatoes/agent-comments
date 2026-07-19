@@ -1,16 +1,15 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { FilterBarViewModel } from '../view-model.ts';
 
 type FilterBarProps = {
-  filterBar: FilterBarViewModel;
+  filter: string;
 };
 
-export const FilterBar: React.FC<FilterBarProps> = ({ filterBar }) => {
+export const FilterBar: React.FC<FilterBarProps> = ({ filter }) => {
   return (
     <Box marginTop={1} flexDirection="column">
       <Text>
-        Filter: <Text color="yellow">{filterBar.filterInput}</Text>
+        Filter: <Text color="yellow">{filter}</Text>
         <Text dimColor>█</Text>
       </Text>
       <Text dimColor>  Enter apply  |  Esc cancel</Text>
