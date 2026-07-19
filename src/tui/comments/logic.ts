@@ -3,6 +3,7 @@
 // Input: domain entities + client state
 // Output: view models (server state + client state merged, no layout)
 
+import Fuse from 'fuse.js';
 import { CommentStatus } from '../../comments/comments.domain.ts';
 import type { CommentEntity } from '../../comments/comments.domain.ts';
 import type { TuiState } from '../store.ts';
@@ -13,6 +14,20 @@ import type {
   FilterBarViewModel,
 } from './view-model.ts';
 
+// ── fuzzy filter ───────────────────────────────────────────────
+
+const fuseOptions: Fuse.IFuseOptions<CommentEntity> = {
+  keys: ['file', 'message'],
+  threshold: 0.4,
+  includeScore: true,
+};
+
+function fuzzyFilter(comments: CommentEntity[], query: string): CommentEntity[] {
+  if (!query) return comments;
+  const fuse = new Fuse(comments, fuseOptions);
+  return fuse.search(query).map((r) => r.item);
+}
+
 // ── filtering ──────────────────────────────────────────────────
 
 export function filterComments(
@@ -20,15 +35,9 @@ export function filterComments(
   filter: string,
   showResolved: boolean,
 ): CommentEntity[] {
-  let result = comments;
+  let result = fuzzyFilter(comments, filter);
   if (!showResolved) {
     result = result.filter((c) => c.status !== CommentStatus.Resolved);
-  }
-  if (filter) {
-    const f = filter.toLowerCase();
-    result = result.filter(
-      (c) => c.file.toLowerCase().includes(f) || c.message.toLowerCase().includes(f),
-    );
   }
   return result;
 }

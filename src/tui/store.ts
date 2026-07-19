@@ -12,7 +12,6 @@ export type TuiState = {
   filterInput: string;
   showResolved: boolean;
   popupIndex: number;
-  commentCount: number;
 };
 
 export type TuiKey = {
@@ -30,14 +29,14 @@ export type TuiKey = {
 // ── actions (methods on store) ─────────────────────────────────
 
 interface TuiActions {
-  setCommentCount: (count: number) => void;
-  handleKey: (input: string, key: TuiKey) => void;
+  handleKey: (input: string, key: TuiKey, totalCount?: number) => void;
   closeHelp: () => void;
 }
 
 // ── helpers ────────────────────────────────────────────────────
 
 function clampIndex(idx: number, count: number): number {
+  if (count <= 0) return 0;
   return Math.max(0, Math.min(idx, count - 1));
 }
 
@@ -52,7 +51,6 @@ const initialState: TuiState = {
   filterInput: '',
   showResolved: settings.showResolved,
   popupIndex: 0,
-  commentCount: 0,
 };
 
 // ── store ──────────────────────────────────────────────────────
@@ -60,19 +58,12 @@ const initialState: TuiState = {
 export const useTuiStore = create<TuiState & TuiActions>((set, get) => ({
   ...initialState,
 
-  setCommentCount: (count) =>
-    set((s) => ({
-      commentCount: count,
-      selectedIndex: clampIndex(s.selectedIndex, count),
-    })),
-
   closeHelp: () => {
     if (get().mode === 'help') set({ mode: 'normal' });
   },
 
-  handleKey: (input, key) => {
+  handleKey: (input, key, totalCount = 0) => {
     const s = get();
-    const count = s.commentCount;
 
     // ── filter mode ──────────────────────────────────────────
     if (s.mode === 'filter') {
@@ -97,11 +88,11 @@ export const useTuiStore = create<TuiState & TuiActions>((set, get) => ({
 
     // ── normal mode ──────────────────────────────────────────
     if (key.upArrow || input === 'k') {
-      set({ selectedIndex: clampIndex(s.selectedIndex - 1, count) });
+      set({ selectedIndex: clampIndex(s.selectedIndex - 1, totalCount) });
       return;
     }
     if (key.downArrow || input === 'j') {
-      set({ selectedIndex: clampIndex(s.selectedIndex + 1, count) });
+      set({ selectedIndex: clampIndex(s.selectedIndex + 1, totalCount) });
       return;
     }
     if (input === 'R') {

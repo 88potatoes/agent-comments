@@ -9,7 +9,6 @@ function fresh(): TuiState {
     filterInput: '',
     showResolved: true,
     popupIndex: 0,
-    commentCount: 0,
   };
 }
 
@@ -31,8 +30,8 @@ function key(input: string, overrides: Partial<TuiKey> = {}): { input: string; k
   };
 }
 
-function act(a: ReturnType<typeof key>) {
-  useTuiStore.getState().handleKey(a.input, a.key);
+function act(a: ReturnType<typeof key>, totalCount = 5) {
+  useTuiStore.getState().handleKey(a.input, a.key, totalCount);
 }
 
 describe('tuiStore', () => {
@@ -54,25 +53,6 @@ describe('tuiStore', () => {
     });
   });
 
-  describe('setCommentCount', () => {
-    it('updates commentCount', () => {
-      useTuiStore.getState().setCommentCount(5);
-      expect(useTuiStore.getState().commentCount).toBe(5);
-    });
-
-    it('clamps selectedIndex when count shrinks', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 10, commentCount: 20 });
-      useTuiStore.getState().setCommentCount(3);
-      expect(useTuiStore.getState().selectedIndex).toBe(2);
-    });
-
-    it('keeps selectedIndex when count is larger', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 3, commentCount: 5 });
-      useTuiStore.getState().setCommentCount(10);
-      expect(useTuiStore.getState().selectedIndex).toBe(3);
-    });
-  });
-
   describe('closeHelp', () => {
     it('closes help and returns to normal', () => {
       useTuiStore.setState({ ...fresh(), mode: 'help' });
@@ -89,33 +69,38 @@ describe('tuiStore', () => {
 
   describe('normal mode — navigation', () => {
     it('j / downArrow moves down', () => {
-      useTuiStore.setState({ ...fresh(), commentCount: 5 });
-      act(key('j'));
+      act(key('j'), 5);
       expect(useTuiStore.getState().selectedIndex).toBe(1);
     });
 
     it('k / upArrow moves up', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 2, commentCount: 5 });
-      act(key('k'));
+      useTuiStore.setState({ ...fresh(), selectedIndex: 2 });
+      act(key('k'), 5);
       expect(useTuiStore.getState().selectedIndex).toBe(1);
     });
 
     it('upArrow clamps at 0', () => {
-      act(key('k'));
+      act(key('k'), 3);
       expect(useTuiStore.getState().selectedIndex).toBe(0);
     });
 
     it('downArrow clamps at last item', () => {
-      useTuiStore.setState({ ...fresh(), commentCount: 3, selectedIndex: 2 });
-      act(key('j'));
+      useTuiStore.setState({ ...fresh(), selectedIndex: 2 });
+      act(key('j'), 3);
       expect(useTuiStore.getState().selectedIndex).toBe(2);
+    });
+
+    it('clamps correctly with zero totalCount', () => {
+      useTuiStore.setState({ ...fresh(), selectedIndex: 0 });
+      act(key('j'), 0);
+      expect(useTuiStore.getState().selectedIndex).toBe(0);
     });
   });
 
   describe('normal mode — toggles and modes', () => {
     it('R toggles showResolved and resets selectedIndex', () => {
-      useTuiStore.setState({ ...fresh(), showResolved: true, selectedIndex: 5, commentCount: 10 });
-      act(key('R'));
+      useTuiStore.setState({ ...fresh(), showResolved: true, selectedIndex: 5 });
+      act(key('R'), 10);
       expect(useTuiStore.getState().showResolved).toBe(false);
       expect(useTuiStore.getState().selectedIndex).toBe(0);
     });
@@ -127,14 +112,12 @@ describe('tuiStore', () => {
     });
 
     it('? does nothing (popup disabled)', () => {
-      useTuiStore.setState({ ...fresh(), commentCount: 3 });
-      act(key('?'));
+      act(key('?'), 3);
       expect(useTuiStore.getState().mode).toBe('normal');
     });
 
     it('Enter does nothing in normal mode', () => {
-      useTuiStore.setState({ ...fresh(), commentCount: 3 });
-      act(key('', { return: true }));
+      act(key('', { return: true }), 3);
       expect(useTuiStore.getState().mode).toBe('normal');
     });
 
@@ -151,8 +134,8 @@ describe('tuiStore', () => {
     });
 
     it('Esc clears filter and resets selectedIndex', () => {
-      useTuiStore.setState({ ...fresh(), filter: 'src', selectedIndex: 3, commentCount: 5 });
-      act(key('', { escape: true }));
+      useTuiStore.setState({ ...fresh(), filter: 'src', selectedIndex: 3 });
+      act(key('', { escape: true }), 5);
       expect(useTuiStore.getState().filter).toBe('');
       expect(useTuiStore.getState().selectedIndex).toBe(0);
     });
@@ -228,8 +211,8 @@ describe('tuiStore', () => {
 
   describe('popup mode (falls through to normal)', () => {
     it('popup keys fall through to normal mode', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'popup', commentCount: 3, selectedIndex: 0 });
-      act(key('j'));
+      useTuiStore.setState({ ...fresh(), mode: 'popup', selectedIndex: 0 });
+      act(key('j'), 3);
       expect(useTuiStore.getState().selectedIndex).toBe(1);
       expect(useTuiStore.getState().mode).toBe('popup');
     });

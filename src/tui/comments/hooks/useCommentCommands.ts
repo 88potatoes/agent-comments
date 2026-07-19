@@ -14,11 +14,6 @@ export function useCommentCommands() {
     useTuiStore.getState().handleKey('j', {});
   }, []);
 
-  const select = useCallback(() => {
-    const s = useTuiStore.getState();
-    s.setCommentCount(s.commentCount);
-  }, []);
-
   const openFilter = useCallback(() => {
     useTuiStore.getState().handleKey('/', {});
   }, []);
@@ -74,7 +69,6 @@ export function useCommentCommands() {
   return {
     moveUp,
     moveDown,
-    select,
     openFilter,
     openActions,
     closePopup,
