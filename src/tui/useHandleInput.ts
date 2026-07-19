@@ -31,6 +31,7 @@ export function handleListInput(
 
   const s = useTuiStore.getState();
 
+
   // navigation
   if (key.upArrow || input === 'k') {
     s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex - 1, vm.totalCount));
@@ -107,9 +108,7 @@ export function useHandleInput(
       case 'list-filter':
         handleListFilterInput(input, key);
         break;
-      case 'help':
-        handleHelpInput(input, key);
-        break;
+
     }
   });
 }

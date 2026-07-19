@@ -6,6 +6,7 @@ function fresh(): TuiState {
   return {
     inputMode: 'list',
     hoveredCommentIndex: 0,
+    hoveredHelpIndex: 0,
     filter: '',
     showResolved: true,
   };
@@ -102,8 +103,11 @@ describe('handleListInput', () => {
     });
 
     it('? enters help mode', () => {
+      useTuiStore.setState({ hoveredHelpIndex: 3 });
       handleListInput('?', key().key, noopVm, noopComments, noopQueryClient);
-      expect(useTuiStore.getState().inputMode).toBe('help');
+      const s = useTuiStore.getState();
+      expect(s.inputMode).toBe('help');
+      expect(s.hoveredHelpIndex).toBe(0);
     });
   });
 

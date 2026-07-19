@@ -8,6 +8,7 @@ export type InputMode = 'list' | 'list-filter' | 'help';
 export type TuiState = {
   inputMode: InputMode;
   hoveredCommentIndex: number;
+  hoveredHelpIndex: number;
   filter: string;
   showResolved: boolean;
 };
@@ -48,6 +49,7 @@ const settings = loadSettings();
 const initialState: TuiState = {
   inputMode: 'list',
   hoveredCommentIndex: 0,
+  hoveredHelpIndex: 0,
   filter: '',
   showResolved: settings.showResolved,
 };
@@ -60,6 +62,7 @@ export const useTuiStore = create<TuiState & TuiActions>((set) => ({
   setInputMode: (inputMode) => set({ inputMode }),
   setFilter: (filter) => set({ filter }),
   setHoveredCommentIndex: (hoveredCommentIndex) => set({ hoveredCommentIndex }),
+  setHoveredHelpIndex: (hoveredHelpIndex) => set({ hoveredHelpIndex }),
   toggleShowResolved: () => set((s) => ({ showResolved: !s.showResolved, hoveredCommentIndex: 0 })),
   applyPatch: (patch) => set(patch),
 }));

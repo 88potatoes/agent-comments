@@ -1,45 +1,61 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
+import { useTuiStore, clampIndex } from './store.ts';
 import type { InputMode } from './store.ts';
+
+// ── keymap entry ───────────────────────────────────────────────
 
 type KeymapEntry = {
   keys: string;
   description: string;
+  /** The key to simulate when Enter is pressed on this row. Entry is only hoverable if set. */
+  action?: string;
 };
+
+// ── global (always shown) ──────────────────────────────────────
 
 const globalKeymaps: KeymapEntry[] = [
-  { keys: '?', description: 'Toggle help' },
-  { keys: 'q', description: 'Quit' },
+  { keys: '?', description: 'Toggle help', action: '?' },
+  { keys: 'q', description: 'Quit', action: 'q' },
 ];
 
-const localKeymaps: Record<InputMode, KeymapEntry[]> = {
-  list: [
-    { keys: 'j / ↓', description: 'Move down' },
-    { keys: 'k / ↑', description: 'Move up' },
-    { keys: 'r', description: 'Refresh comments' },
-    { keys: 'R', description: 'Toggle resolved visibility' },
-    { keys: 'e', description: 'Open in editor' },
-    { keys: '/', description: 'Filter comments' },
-    { keys: 'Esc', description: 'Clear filter' },
-  ],
-  'list-filter': [
-    { keys: 'type', description: 'Enter filter text' },
-    { keys: 'Enter', description: 'Apply filter' },
-    { keys: 'Esc', description: 'Cancel filter' },
-  ],
-  help: [],
-};
+// ── context-aware local entries ────────────────────────────────
 
-function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
+function buildLocalKeymaps(
+  mode: InputMode,
+  hasFilter: boolean,
+  hasComments: boolean,
+): KeymapEntry[] {
+  if (mode === 'list-filter') {
+    return [
+      { keys: 'type', description: 'Enter filter text' },
+      { keys: 'Enter', description: 'Apply filter', action: 'Enter' },
+      { keys: 'Esc', description: 'Cancel filter', action: 'Esc' },
+    ];
   }
-  return qi === q.length;
+
+  if (mode === 'help') return [];
+
+  // list mode — only show actions valid right now
+  const entries: KeymapEntry[] = [];
+
+  entries.push({ keys: 'r', description: 'Refresh comments', action: 'r' });
+  entries.push({ keys: 'R', description: 'Toggle resolved visibility', action: 'R' });
+
+  if (hasComments) {
+    entries.push({ keys: 'e', description: 'Open in editor', action: 'e' });
+  }
+
+  entries.push({ keys: '/', description: 'Filter comments', action: '/' });
+
+  if (hasFilter) {
+    entries.push({ keys: 'Esc', description: 'Clear filter', action: 'Esc' });
+  }
+
+  return entries;
 }
+
+// ── helpers ────────────────────────────────────────────────────
 
 const modeLabels: Record<InputMode, string> = {
   list: 'List',
@@ -47,95 +63,102 @@ const modeLabels: Record<InputMode, string> = {
   help: 'Help',
 };
 
-interface HelpScreenProps {
+// ── props ──────────────────────────────────────────────────────
+
+export interface HelpScreenProps {
   mode: InputMode;
+  hasFilter: boolean;
+  hasComments: boolean;
   onClose: () => void;
+  /** Called with the action key when Enter is pressed on a hovered row. */
+  onAction: (actionKey: string) => void;
 }
 
-export const HelpScreen: React.FC<HelpScreenProps> = ({ mode, onClose }) => {
-  const [search, setSearch] = useState('');
-  const [searching, setSearching] = useState(false);
+// ── component ──────────────────────────────────────────────────
 
-  const locals = localKeymaps[mode];
+export const HelpScreen: React.FC<HelpScreenProps> = ({
+  mode,
+  hasFilter,
+  hasComments,
+  onClose,
+  onAction,
+}) => {
+  const state = useTuiStore();
+  const locals = useMemo(
+    () => buildLocalKeymaps(mode, hasFilter, hasComments),
+    [mode, hasFilter, hasComments],
+  );
 
-  const filteredLocal = useMemo(() => {
-    if (!search) return locals;
-    return locals.filter(
-      (k) => fuzzyMatch(search, k.keys) || fuzzyMatch(search, k.description),
-    );
-  }, [search, locals]);
-
-  const filteredGlobal = useMemo(() => {
-    if (!search) return globalKeymaps;
-    return globalKeymaps.filter(
-      (k) => fuzzyMatch(search, k.keys) || fuzzyMatch(search, k.description),
-    );
-  }, [search]);
-
-  const totalMatches = filteredLocal.length + filteredGlobal.length;
+  // flat list of all hoverable entries (locals with actions first, then globals)
+  const allEntries = useMemo(() => {
+    const hlocals = locals.filter((e) => e.action);
+    return [...hlocals, ...globalKeymaps];
+  }, [locals]);
 
   useInput((input, key) => {
-    if (searching) {
-      if (key.escape) {
-        setSearching(false);
-        setSearch('');
-      } else if (key.return) {
-        setSearching(false);
-      } else if (key.backspace || key.delete) {
-        setSearch((prev) => prev.slice(0, -1));
-      } else if (input && !key.ctrl && !key.meta && !key.tab) {
-        setSearch((prev) => prev + input);
-      }
+    // close
+    if (key.escape || input === 'q' || input === '?') {
+      onClose();
       return;
     }
 
-    if (key.escape || input === 'q' || input === '?') {
-      onClose();
-    } else if (input === '/') {
-      setSearching(true);
-      setSearch('');
+    // navigate
+    if (key.upArrow || input === 'k') {
+      useTuiStore.getState().setHoveredHelpIndex(
+        clampIndex(state.hoveredHelpIndex - 1, allEntries.length),
+      );
+      return;
+    }
+    if (key.downArrow || input === 'j') {
+      useTuiStore.getState().setHoveredHelpIndex(
+        clampIndex(state.hoveredHelpIndex + 1, allEntries.length),
+      );
+      return;
+    }
+
+    // activate
+    if (key.return) {
+      const entry = allEntries[state.hoveredHelpIndex];
+      if (entry?.action) {
+        onClose();
+        onAction(entry.action);
+      }
     }
   });
 
   const keysWidth = 18;
 
-  const renderSection = (title: string, entries: KeymapEntry[]) => {
+  const renderSection = (title: string, entries: KeymapEntry[], startIndex: number) => {
     if (entries.length === 0) return null;
     return (
       <Box flexDirection="column" marginTop={1}>
         <Text bold>{title}</Text>
-        {entries.map((k) => (
-          <Box key={k.keys}>
-            <Text>{k.keys.padEnd(keysWidth)}</Text>
-            <Text dimColor>{k.description}</Text>
-          </Box>
-        ))}
+        {entries.map((k, i) => {
+          const globalIdx = startIndex + i;
+          const isHovered = globalIdx === state.hoveredHelpIndex && allEntries.length > 0;
+          return (
+            <Box key={k.keys}>
+              <Text inverse={isHovered}>{k.keys.padEnd(keysWidth)}</Text>
+              <Text inverse={isHovered} dimColor={!isHovered}>{k.description}</Text>
+            </Box>
+          );
+        })}
       </Box>
     );
   };
+
+  const hoverableLocals = locals.filter((e) => e.action);
+  const hoverStart = 0;
+  const globalStart = hoverableLocals.length;
 
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
         <Text bold>Help</Text>
-        <Text dimColor>  press / to search, ? or Esc to close</Text>
+        <Text dimColor>  j/k navigate, Enter to activate, ?/Esc/q to close</Text>
       </Box>
-      {searching && (
-        <Box>
-          <Text>
-            Search: <Text color="yellow">{search}</Text>
-            <Text dimColor>█</Text>
-          </Text>
-          <Text dimColor>  ({totalMatches} match{totalMatches !== 1 ? 'es' : ''})</Text>
-        </Box>
-      )}
-      {renderSection(`Local — ${modeLabels[mode]}`, filteredLocal)}
-      {renderSection('Global', filteredGlobal)}
-      {totalMatches === 0 && (
-        <Box>
-          <Text dimColor>  No matching keymaps</Text>
-        </Box>
-      )}
+      {renderSection(`Local — ${modeLabels[mode]}`, hoverableLocals, hoverStart)}
+      {renderSection('Global', globalKeymaps, globalStart)}
     </Box>
   );
 };
