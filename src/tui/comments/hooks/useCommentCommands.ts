@@ -18,7 +18,7 @@ export function useCommentCommands(totalCount: number) {
 
   const openFilter = useCallback(() => {
     const s = useTuiStore.getState();
-    useTuiStore.setState({ mode: 'filter', filterInput: s.filter });
+    useTuiStore.setState({ mode: 'filter' });
   }, []);
 
   const openActions = useCallback(() => {
@@ -52,21 +52,21 @@ export function useCommentCommands(totalCount: number) {
 
   const filterType = useCallback((char: string) => {
     const s = useTuiStore.getState();
-    useTuiStore.setState({ filterInput: s.filterInput + char });
+    useTuiStore.setState({ filter: s.filter + char });
   }, []);
 
   const filterBackspace = useCallback(() => {
     const s = useTuiStore.getState();
-    useTuiStore.setState({ filterInput: s.filterInput.slice(0, -1) });
+    useTuiStore.setState({ filter: s.filter.slice(0, -1) });
   }, []);
 
   const filterApply = useCallback(() => {
     const s = useTuiStore.getState();
-    useTuiStore.setState({ filter: s.filterInput.trim(), mode: 'normal', selectedIndex: 0 });
+    useTuiStore.setState({ mode: 'normal', selectedIndex: 0 });
   }, []);
 
   const filterCancel = useCallback(() => {
-    useTuiStore.setState({ mode: 'normal', filterInput: '' });
+    useTuiStore.setState({ mode: 'normal', filter: '' });
   }, []);
 
   const closeHelp = useCallback(() => {

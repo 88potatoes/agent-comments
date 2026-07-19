@@ -7,7 +7,6 @@ function fresh(): TuiState {
     mode: 'normal',
     selectedIndex: 0,
     filter: '',
-    filterInput: '',
     showResolved: true,
     popupIndex: 0,
   };
@@ -38,7 +37,7 @@ function act(state: TuiState, a: ReturnType<typeof key>, totalCount = 5): Partia
 describe('reduceKey', () => {
   describe('normal mode — navigation', () => {
     it('j / downArrow moves down', () => {
-      const patch = act({ ...fresh(), commentCount: 5 }, key('j'), 5);
+      const patch = act(fresh(), key('j'), 5);
       expect(patch).toEqual({ selectedIndex: 1 });
     });
 
@@ -90,13 +89,13 @@ describe('reduceKey', () => {
 
     it('/ enters filter mode', () => {
       const patch = act(fresh(), key('/'));
-      expect(patch).toEqual({ mode: 'filter', filterInput: '' });
+      expect(patch).toEqual({ mode: 'filter' });
     });
 
-    it('/ pre-fills filter input with current filter', () => {
+    it('/ enters filter mode preserving current filter', () => {
       const s = { ...fresh(), filter: 'src' };
       const patch = act(s, key('/'));
-      expect(patch).toEqual({ mode: 'filter', filterInput: 'src' });
+      expect(patch).toEqual({ mode: 'filter' });
     });
 
     it('Esc clears filter and resets selectedIndex', () => {
@@ -126,37 +125,31 @@ describe('reduceKey', () => {
   });
 
   describe('filter mode', () => {
-    it('types characters into filterInput', () => {
+    it('types characters into filter', () => {
       const s = { ...fresh(), mode: 'filter' as const };
-      expect(reduceKey(s, 's', key('s').key, 0)).toEqual({ filterInput: 's' });
-      s.filterInput = 's';
-      expect(reduceKey(s, 'r', key('r').key, 0)).toEqual({ filterInput: 'sr' });
-      s.filterInput = 'sr';
-      expect(reduceKey(s, 'c', key('c').key, 0)).toEqual({ filterInput: 'src' });
+      expect(reduceKey(s, 's', key('s').key, 0)).toEqual({ filter: 's' });
+      s.filter = 's';
+      expect(reduceKey(s, 'r', key('r').key, 0)).toEqual({ filter: 'sr' });
+      s.filter = 'sr';
+      expect(reduceKey(s, 'c', key('c').key, 0)).toEqual({ filter: 'src' });
     });
 
     it('backspace removes last character', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'src' };
+      const s = { ...fresh(), mode: 'filter' as const, filter: 'src' };
       const patch = reduceKey(s, '', key('', { backspace: true }).key, 0);
-      expect(patch).toEqual({ filterInput: 'sr' });
+      expect(patch).toEqual({ filter: 'sr' });
     });
 
-    it('Enter applies filter and returns to normal', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'foo' };
+    it('Enter exits filter mode (filter already applied live)', () => {
+      const s = { ...fresh(), mode: 'filter' as const, filter: 'foo' };
       const patch = reduceKey(s, '', key('', { return: true }).key, 0);
-      expect(patch).toEqual({ filter: 'foo', mode: 'normal', selectedIndex: 0 });
+      expect(patch).toEqual({ mode: 'normal', selectedIndex: 0 });
     });
 
-    it('Enter with whitespace trims filter', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filterInput: '  bar  ' };
-      const patch = reduceKey(s, '', key('', { return: true }).key, 0);
-      expect(patch).toEqual({ filter: '  bar  '.trim(), mode: 'normal', selectedIndex: 0 });
-    });
-
-    it('Esc cancels filter and clears input', () => {
-      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'foo' };
+    it('Esc clears filter and exits', () => {
+      const s = { ...fresh(), mode: 'filter' as const, filter: 'foo' };
       const patch = reduceKey(s, '', key('', { escape: true }).key, 0);
-      expect(patch).toEqual({ mode: 'normal', filterInput: '' });
+      expect(patch).toEqual({ mode: 'normal', filter: '' });
     });
 
     it('ignores ctrl/meta/tab input', () => {

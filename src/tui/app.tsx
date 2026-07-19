@@ -1,13 +1,11 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
-import { useQueryComments } from './hooks/comments/useQueryComments.ts';
 import { GlobalProviders } from './GlobalProviders.tsx';
-import { getRepoRoot } from '../lib/db.ts';
 import { useTuiStore } from './store.ts';
-import { toCommentListViewModel } from './comments/logic.ts';
 import { CommentList } from './comments/components/CommentList.tsx';
 import { useHandleInput } from './useHandleInput.ts';
+import { useCommentListViewModel } from './comments/hooks/useCommentListViewModel.ts';
 
 // ── App ───────────────────────────────────────────────────────────
 
@@ -16,18 +14,9 @@ const AppInner: React.FC = () => {
   const queryClient = useQueryClient();
   const { isFocused } = useFocus();
 
-  // ── server data ──────────────────────────────────────────────────
+  // ── data + view model ────────────────────────────────────────────
 
-  const { data: comments = [] } = useQueryComments();
-
-  // ── view model ───────────────────────────────────────────────────
-
-  const repoRoot = useMemo(() => getRepoRoot(), []);
-
-  const vm = useMemo(
-    () => toCommentListViewModel(comments, state, repoRoot),
-    [comments, state, repoRoot],
-  );
+  const { vm, comments } = useCommentListViewModel();
 
   // ── invalidate on focus ──────────────────────────────────────────
 

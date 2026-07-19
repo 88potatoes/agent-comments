@@ -9,7 +9,6 @@ export type TuiState = {
   mode: TuiMode;
   selectedIndex: number;
   filter: string;
-  filterInput: string;
   showResolved: boolean;
   popupIndex: number;
 };
@@ -41,7 +40,6 @@ const initialState: TuiState = {
   mode: 'normal',
   selectedIndex: 0,
   filter: '',
-  filterInput: '',
   showResolved: settings.showResolved,
   popupIndex: 0,
 };

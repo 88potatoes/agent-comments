@@ -119,7 +119,7 @@ export function toCommentListViewModel(
   // filter bar
   let filterBar: FilterBarViewModel | null = null;
   if (state.mode === 'filter') {
-    filterBar = { filterInput: state.filterInput };
+    filterBar = { filterInput: state.filter };
   }
 
   return {

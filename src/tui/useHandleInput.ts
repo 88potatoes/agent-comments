@@ -15,10 +15,10 @@ export function reduceKey(
 ): Partial<TuiState> | null {
   // ── filter mode ──────────────────────────────────────────
   if (state.mode === 'filter') {
-    if (key.escape) return { mode: 'normal', filterInput: '' };
-    if (key.return) return { filter: state.filterInput.trim(), mode: 'normal', selectedIndex: 0 };
-    if (key.backspace || key.delete) return { filterInput: state.filterInput.slice(0, -1) };
-    if (input && !key.ctrl && !key.meta && !key.tab) return { filterInput: state.filterInput + input };
+    if (key.escape) return { mode: 'normal', filter: '' };
+    if (key.return) return { mode: 'normal', selectedIndex: 0 };
+    if (key.backspace || key.delete) return { filter: state.filter.slice(0, -1) };
+    if (input && !key.ctrl && !key.meta && !key.tab) return { filter: state.filter + input };
     return null;
   }
 
@@ -27,7 +27,7 @@ export function reduceKey(
   if (key.downArrow || input === 'j') return { selectedIndex: clampIndex(state.selectedIndex + 1, totalCount) };
   if (input === 'R') return { showResolved: !state.showResolved, selectedIndex: 0 };
   if (input === '?') return null; // popup disabled
-  if (input === '/') return { mode: 'filter', filterInput: state.filter };
+  if (input === '/') return { mode: 'filter' };
   if (key.escape && state.filter) return { filter: '', selectedIndex: 0 };
   return null;
 }
