@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { Box, Text, useInput, useStdout, useFocus } from 'ink';
+import { useInput, useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
 import { spawn } from 'node:child_process';
 import { CommentStatus } from '../comments/comments.domain.ts';
@@ -9,11 +9,13 @@ import { useMutateResolveComment } from './hooks/comments/useMutateResolveCommen
 import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveComment.ts';
 import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
 import { useMutateDeleteComment } from './hooks/comments/useMutateDeleteComment.ts';
-import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.tsx';
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { getRepoRoot } from '../lib/db.ts';
 import { useTuiStore } from './useTuiStore.ts';
 import { tuiStore } from './store.ts';
+import { toCommentListViewModel, filterComments } from './comments/logic.ts';
+import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
+import { CommentList } from './comments/components/CommentList.tsx';
 
 // ── open in editor ───────────────────────────────────────────────
 
@@ -34,21 +36,15 @@ function openInEditor(c: CommentEntity) {
   }
 }
 
-// ── popup action type ────────────────────────────────────────────
-
-type PopupAction = {
-  key: string;
-  label: string;
-  action: () => void;
-};
+// ── App ───────────────────────────────────────────────────────────
 
 const AppInner: React.FC = () => {
   const state = useTuiStore();
-  const { stdout } = useStdout();
   const queryClient = useQueryClient();
   const { isFocused } = useFocus();
+  const commands = useCommentCommands();
 
-  // ── data ─────────────────────────────────────────────────────────
+  // ── server data ──────────────────────────────────────────────────
 
   const { data: comments = [] } = useQueryComments();
 
@@ -57,21 +53,12 @@ const AppInner: React.FC = () => {
   const setStatusMutation = useMutateSetStatus();
   const deleteMutation = useMutateDeleteComment();
 
-  // ── sync comment count ───────────────────────────────────────────
+  // ── sync comment count to store ──────────────────────────────────
 
-  const filtered = useMemo(() => {
-    let result = comments;
-    if (!state.showResolved) {
-      result = result.filter((c) => c.status !== CommentStatus.Resolved);
-    }
-    if (state.filter) {
-      const f = state.filter.toLowerCase();
-      result = result.filter(
-        (c) => c.file.toLowerCase().includes(f) || c.message.toLowerCase().includes(f),
-      );
-    }
-    return result;
-  }, [comments, state.filter, state.showResolved]);
+  const filtered = useMemo(
+    () => filterComments(comments, state.filter, state.showResolved),
+    [comments, state.filter, state.showResolved],
+  );
 
   useEffect(() => {
     tuiStore.dispatch({ type: 'tui/setCommentCount', count: filtered.length });
@@ -85,87 +72,21 @@ const AppInner: React.FC = () => {
     }
   }, [isFocused, queryClient]);
 
-  // ── layout ───────────────────────────────────────────────────────
+  // ── view model ───────────────────────────────────────────────────
 
-  const termRows = stdout?.rows ?? 24;
-  const termCols = stdout?.columns ?? 80;
-  const popupHeight = 8;
-  const headerHeight = 2;
-  const footerHeight = state.mode === 'filter' ? 3 : state.mode === 'popup' ? popupHeight : 0;
-  const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
+  const repoRoot = useMemo(() => getRepoRoot(), []);
+
+  const vm = useMemo(
+    () => toCommentListViewModel(comments, state, repoRoot),
+    [comments, state, repoRoot],
+  );
+
+  // ── selected comment (for side effects) ──────────────────────────
 
   const clampedIndex = Math.min(state.selectedIndex, Math.max(0, filtered.length - 1));
-  const startIdx = Math.max(0, clampedIndex - Math.floor(maxVisible / 2));
-  const endIdx = Math.min(filtered.length, startIdx + maxVisible);
-  const visibleComments = filtered.slice(startIdx, endIdx);
+  const selectedComment: CommentEntity | undefined = filtered[clampedIndex];
 
-  const prefixWidth = 12;
-  const fileColMax = Math.min(30, Math.floor(termCols * 0.32));
-  const msgColMax = Math.max(10, termCols - prefixWidth - fileColMax - 2);
-
-  // ── selected comment / popup actions ─────────────────────────────
-
-  const selectedComment = filtered[clampedIndex];
-
-  const popupActions: PopupAction[] = useMemo(() => {
-    if (!selectedComment) return [];
-    const shortId = selectedComment.id.slice(0, 8);
-    const canResolve = selectedComment.status === CommentStatus.Active || selectedComment.status === CommentStatus.Draft;
-    const canUnresolve = selectedComment.status === CommentStatus.Resolved;
-    return [
-      ...(canResolve
-        ? [
-            {
-              key: 'r',
-              label: selectedComment.status === CommentStatus.Draft
-                ? 'Activate (draft → active)'
-                : 'Resolve',
-              action: () => {
-                if (selectedComment.status === CommentStatus.Draft) {
-                  setStatusMutation.mutate({ id: shortId, status: CommentStatus.Active });
-                } else {
-                  resolveMutation.mutate(shortId);
-                }
-              },
-            },
-          ]
-        : []),
-      ...(canUnresolve
-        ? [
-            {
-              key: 'u',
-              label: 'Unresolve',
-              action: () => {
-                unresolveMutation.mutate(shortId);
-              },
-            },
-          ]
-        : []),
-      {
-        key: 'e',
-        label: 'Open in editor',
-        action: () => {
-          openInEditor(selectedComment);
-        },
-      },
-      {
-        key: 'y',
-        label: 'Copy ID',
-        action: () => {
-          process.stdout.write(shortId);
-        },
-      },
-      {
-        key: 'd',
-        label: 'Delete',
-        action: () => {
-          deleteMutation.mutate(shortId);
-        },
-      },
-    ];
-  }, [selectedComment, resolveMutation, unresolveMutation, setStatusMutation, deleteMutation]);
-
-  // ── keyboard ─────────────────────────────────────────────────────
+  // ── keyboard (side effects only) ─────────────────────────────────
 
   useInput((input, key) => {
     // Side-effect keys in normal mode
@@ -185,159 +106,100 @@ const AppInner: React.FC = () => {
     }
 
     // Side-effect keys in popup mode
-    if (state.mode === 'popup') {
+    if (state.mode === 'popup' && vm.popup) {
       if (key.return) {
-        const action = popupActions[state.popupIndex];
-        if (action) {
-          action.action();
-          tuiStore.dispatch({ type: 'tui/key', input: '', key: { escape: true } }); // close popup
-        }
+        handlePopupAction(
+          vm.popup.actions[state.popupIndex]?.key,
+          selectedComment,
+          { resolveMutation, unresolveMutation, setStatusMutation, deleteMutation },
+        );
+        commands.closePopup();
         return;
       }
-      // Direct key press for any popup action
-      const match = popupActions.find((a) => a.key === input);
+      // Direct key press
+      const match = vm.popup.actions.find((a) => a.key === input);
       if (match) {
-        match.action();
-        if (match.key !== 'e' && match.key !== 'y') {
-          tuiStore.dispatch({ type: 'tui/key', input: '', key: { escape: true } });
-        }
+        const closed = handlePopupAction(
+          match.key,
+          selectedComment,
+          { resolveMutation, unresolveMutation, setStatusMutation, deleteMutation },
+        );
+        if (closed) commands.closePopup();
         return;
       }
     }
 
     // Dispatch all other keys to the store
-    tuiStore.dispatch({ type: 'tui/key', input, key: {
-      upArrow: key.upArrow,
-      downArrow: key.downArrow,
-      return: key.return,
-      escape: key.escape,
-      backspace: key.backspace,
-      delete: key.delete,
-      ctrl: key.ctrl,
-      meta: key.meta,
-      tab: key.tab,
-    } });
+    tuiStore.dispatch({
+      type: 'tui/key',
+      input,
+      key: {
+        upArrow: key.upArrow,
+        downArrow: key.downArrow,
+        return: key.return,
+        escape: key.escape,
+        backspace: key.backspace,
+        delete: key.delete,
+        ctrl: key.ctrl,
+        meta: key.meta,
+        tab: key.tab,
+      },
+    });
   });
 
   // ── render ───────────────────────────────────────────────────────
 
-  const repoRoot = useMemo(() => getRepoRoot(), []);
-
-  const showScrollTop = startIdx > 0;
-  const showScrollBottom = endIdx < filtered.length;
-
-  return (
-    <Box flexDirection="column" paddingX={1}>
-      {/* title */}
-      <Box>
-        <Text bold>agent-comments</Text>
-        <Text dimColor>  {repoRoot}</Text>
-        <Text dimColor>  {filtered.length} comment{filtered.length !== 1 ? 's' : ''}</Text>
-        <Text dimColor>  [? actions]</Text>
-        {state.filter ? <Text color="yellow">  filter: "{state.filter}"</Text> : null}
-        {!state.showResolved && <Text color="yellow">  hiding resolved</Text>}
-      </Box>
-
-      {/* column header */}
-      <Box>
-        <Text dimColor>
-          {'ID'.padEnd(prefixWidth)}{'FILE:LINE'.padEnd(fileColMax)}MESSAGE
-        </Text>
-      </Box>
-
-      {/* rows */}
-      {visibleComments.map((c, i) => {
-        const globalIdx = startIdx + i;
-        const isSelected = globalIdx === clampedIndex;
-        const icon = statusIcon(c.status);
-        const shortId = c.id.slice(0, 8);
-        const lineLabel = c.startLine === c.endLine ? `${c.startLine}` : `${c.startLine}-${c.endLine}`;
-        const maxFile = fileColMax - String(lineLabel).length - 1;
-        const fileLine = `${truncateLeft(c.file, Math.max(4, maxFile))}:${lineLabel}`;
-        const prefix = `${icon} ${shortId}`.padEnd(prefixWidth);
-        const fileCol = fileLine.padEnd(fileColMax);
-        const msg = truncateRight(c.message, msgColMax);
-
-        return (
-          <Box key={c.id}>
-            <Text inverse={isSelected} color={isSelected ? undefined : statusColor(c.status)}>
-              {prefix}
-            </Text>
-            <Text
-              inverse={isSelected}
-              dimColor={!isSelected && c.status === CommentStatus.Resolved}
-            >
-              {fileCol}
-            </Text>
-            <Text
-              inverse={isSelected}
-              dimColor={!isSelected && c.status === CommentStatus.Resolved}
-            >
-              {' '}{msg}
-            </Text>
-          </Box>
-        );
-      })}
-
-      {/* scroll indicators */}
-      {showScrollTop && (
-        <Box>
-          <Text dimColor>{' '.repeat(prefixWidth)}▲ more above</Text>
-        </Box>
-      )}
-
-      {/* empty state */}
-      {filtered.length === 0 && (
-        <Box>
-          <Text dimColor>
-            {state.filter || !state.showResolved ? '  No matching comments' : '  No comments yet'}
-          </Text>
-        </Box>
-      )}
-
-      {showScrollBottom && (
-        <Box>
-          <Text dimColor>{' '.repeat(prefixWidth)}▼ more below</Text>
-        </Box>
-      )}
-
-      {/* footer: filter mode */}
-      {state.mode === 'filter' && (
-        <Box marginTop={1} flexDirection="column">
-          <Text>
-            Filter: <Text color="yellow">{state.filterInput}</Text>
-            <Text dimColor>█</Text>
-          </Text>
-          <Text dimColor>  Enter apply  |  Esc cancel</Text>
-        </Box>
-      )}
-
-      {/* footer: popup */}
-      {state.mode === 'popup' && selectedComment && (
-        <Box marginTop={1} flexDirection="column" borderStyle="round" paddingX={1}>
-          <Box>
-            <Text bold>
-              {selectedComment.file}:{selectedComment.startLine === selectedComment.endLine
-                ? selectedComment.startLine
-                : `${selectedComment.startLine}-${selectedComment.endLine}`}
-            </Text>
-          </Box>
-          <Box>
-            <Text dimColor>{truncateRight(selectedComment.message, 60)}</Text>
-          </Box>
-          {popupActions.map((a, i) => (
-            <Box key={a.key}>
-              <Text inverse={i === state.popupIndex} color={i === state.popupIndex ? undefined : 'cyan'}>
-                {i === state.popupIndex ? '▶' : ' '} [{a.key}] {a.label}
-              </Text>
-            </Box>
-          ))}
-        </Box>
-      )}
-
-      </Box>
-  );
+  return <CommentList vm={vm} />;
 };
+
+// ── popup action handler (side effects) ───────────────────────────
+
+type Mutations = {
+  resolveMutation: ReturnType<typeof useMutateResolveComment>;
+  unresolveMutation: ReturnType<typeof useMutateUnresolveComment>;
+  setStatusMutation: ReturnType<typeof useMutateSetStatus>;
+  deleteMutation: ReturnType<typeof useMutateDeleteComment>;
+};
+
+function handlePopupAction(
+  key: string | undefined,
+  comment: CommentEntity | undefined,
+  m: Mutations,
+): boolean {
+  if (!key || !comment) return false;
+  const shortId = comment.id.slice(0, 8);
+
+  switch (key) {
+    case 'r': {
+      if (comment.status === CommentStatus.Draft) {
+        m.setStatusMutation.mutate({ id: shortId, status: CommentStatus.Active });
+      } else {
+        m.resolveMutation.mutate(shortId);
+      }
+      return true;
+    }
+    case 'u': {
+      m.unresolveMutation.mutate(shortId);
+      return true;
+    }
+    case 'd': {
+      m.deleteMutation.mutate(shortId);
+      return true;
+    }
+    case 'e': {
+      openInEditor(comment);
+      return false;
+    }
+    case 'y': {
+      process.stdout.write(shortId);
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+
+// ── export ────────────────────────────────────────────────────────
 
 const App: React.FC = () => (
   <GlobalProviders>
