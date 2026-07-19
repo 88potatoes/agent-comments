@@ -75,9 +75,6 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
       const { input, key } = action;
       const count = state.commentCount;
 
-      // ── help mode — keyboard handled by HelpScreen component ──
-      if (state.mode === 'help') return state;
-
       // ── popup mode ───────────────────────────────────────────
       if (state.mode === 'popup') {
         if (key.escape || input === 'q') {
@@ -125,14 +122,11 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
       if (input === 'R') {
         return { ...state, showResolved: !state.showResolved, selectedIndex: 0 };
       }
-      if (key.return) {
+      if (input === '?') {
         if (count > 0) {
           return { ...state, mode: 'popup', popupIndex: 0 };
         }
         return state;
-      }
-      if (input === '?') {
-        return { ...state, mode: 'help' };
       }
       if (input === '/') {
         return { ...state, mode: 'filter', filterInput: state.filter };

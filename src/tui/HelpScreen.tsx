@@ -1,37 +1,46 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
+import type { TuiMode } from './store.ts';
 
 type KeymapEntry = {
   keys: string;
   description: string;
 };
 
-const keymaps: KeymapEntry[] = [
-  // Normal mode
-  { keys: 'j / ↓', description: 'Move down' },
-  { keys: 'k / ↑', description: 'Move up' },
-  { keys: 'r', description: 'Refresh comments' },
-  { keys: 'R', description: 'Toggle resolved visibility' },
-  { keys: 'e', description: 'Open in editor' },
-  { keys: 'Enter', description: 'Open actions popup' },
-  { keys: '/', description: 'Filter comments' },
+const globalKeymaps: KeymapEntry[] = [
   { keys: '?', description: 'Toggle help' },
-  { keys: 'Esc', description: 'Clear filter' },
   { keys: 'q', description: 'Quit' },
-  // Filter mode
-  { keys: '(filter) type', description: 'Enter filter text' },
-  { keys: '(filter) Enter', description: 'Apply filter' },
-  { keys: '(filter) Esc', description: 'Cancel filter' },
-  // Popup mode
-  { keys: '(popup) j / ↓', description: 'Move down actions' },
-  { keys: '(popup) k / ↑', description: 'Move up actions' },
-  { keys: '(popup) Enter', description: 'Select action' },
-  { keys: '(popup) q / Esc', description: 'Close popup' },
-  { keys: '(popup) r', description: 'Resolve / Activate' },
-  { keys: '(popup) u', description: 'Unresolve' },
-  { keys: '(popup) e', description: 'Open in editor' },
-  { keys: '(popup) y', description: 'Copy ID' },
 ];
+
+const localKeymaps: Record<TuiMode, KeymapEntry[]> = {
+  normal: [
+    { keys: 'j / ↓', description: 'Move down' },
+    { keys: 'k / ↑', description: 'Move up' },
+    { keys: 'r', description: 'Refresh comments' },
+    { keys: 'R', description: 'Toggle resolved visibility' },
+    { keys: 'e', description: 'Open in editor' },
+    { keys: 'Enter', description: 'Open actions popup' },
+    { keys: '/', description: 'Filter comments' },
+    { keys: 'Esc', description: 'Clear filter' },
+  ],
+  filter: [
+    { keys: 'type', description: 'Enter filter text' },
+    { keys: 'Enter', description: 'Apply filter' },
+    { keys: 'Esc', description: 'Cancel filter' },
+  ],
+  popup: [
+    { keys: 'j / ↓', description: 'Move down actions' },
+    { keys: 'k / ↑', description: 'Move up actions' },
+    { keys: 'Enter', description: 'Select action' },
+    { keys: 'q / Esc', description: 'Close popup' },
+    { keys: 'r', description: 'Resolve / Activate' },
+    { keys: 'u', description: 'Unresolve' },
+    { keys: 'e', description: 'Open in editor' },
+    { keys: 'y', description: 'Copy ID' },
+    { keys: 'd', description: 'Delete' },
+  ],
+  help: [],
+};
 
 function fuzzyMatch(query: string, text: string): boolean {
   if (!query) return true;
@@ -44,22 +53,39 @@ function fuzzyMatch(query: string, text: string): boolean {
   return qi === q.length;
 }
 
+const modeLabels: Record<TuiMode, string> = {
+  normal: 'Normal',
+  filter: 'Filter',
+  popup: 'Popup',
+  help: 'Help',
+};
+
 interface HelpScreenProps {
+  mode: TuiMode;
   onClose: () => void;
 }
 
-export const HelpScreen: React.FC<HelpScreenProps> = ({ onClose }) => {
+export const HelpScreen: React.FC<HelpScreenProps> = ({ mode, onClose }) => {
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
 
-  const filtered = useMemo(() => {
-    if (!search) return keymaps;
-    return keymaps.filter(
-      (k) =>
-        fuzzyMatch(search, k.keys) ||
-        fuzzyMatch(search, k.description),
+  const locals = localKeymaps[mode];
+
+  const filteredLocal = useMemo(() => {
+    if (!search) return locals;
+    return locals.filter(
+      (k) => fuzzyMatch(search, k.keys) || fuzzyMatch(search, k.description),
+    );
+  }, [search, locals]);
+
+  const filteredGlobal = useMemo(() => {
+    if (!search) return globalKeymaps;
+    return globalKeymaps.filter(
+      (k) => fuzzyMatch(search, k.keys) || fuzzyMatch(search, k.description),
     );
   }, [search]);
+
+  const totalMatches = filteredLocal.length + filteredGlobal.length;
 
   useInput((input, key) => {
     if (searching) {
@@ -86,6 +112,21 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ onClose }) => {
 
   const keysWidth = 18;
 
+  const renderSection = (title: string, entries: KeymapEntry[]) => {
+    if (entries.length === 0) return null;
+    return (
+      <Box flexDirection="column" marginTop={1}>
+        <Text bold>{title}</Text>
+        {entries.map((k) => (
+          <Box key={k.keys}>
+            <Text>{k.keys.padEnd(keysWidth)}</Text>
+            <Text dimColor>{k.description}</Text>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
@@ -98,21 +139,12 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ onClose }) => {
             Search: <Text color="yellow">{search}</Text>
             <Text dimColor>█</Text>
           </Text>
-          <Text dimColor>  ({filtered.length} match{filtered.length !== 1 ? 'es' : ''})</Text>
+          <Text dimColor>  ({totalMatches} match{totalMatches !== 1 ? 'es' : ''})</Text>
         </Box>
       )}
-      <Box marginTop={1}>
-        <Text dimColor>
-          {'KEY'.padEnd(keysWidth)}DESCRIPTION
-        </Text>
-      </Box>
-      {filtered.map((k) => (
-        <Box key={k.keys}>
-          <Text>{k.keys.padEnd(keysWidth)}</Text>
-          <Text dimColor>{k.description}</Text>
-        </Box>
-      ))}
-      {filtered.length === 0 && (
+      {renderSection(`Local — ${modeLabels[mode]}`, filteredLocal)}
+      {renderSection('Global', filteredGlobal)}
+      {totalMatches === 0 && (
         <Box>
           <Text dimColor>  No matching keymaps</Text>
         </Box>

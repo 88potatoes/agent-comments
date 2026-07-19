@@ -8,9 +8,9 @@ import { useQueryComments } from './hooks/comments/useQueryComments.ts';
 import { useMutateResolveComment } from './hooks/comments/useMutateResolveComment.ts';
 import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveComment.ts';
 import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
+import { useMutateDeleteComment } from './hooks/comments/useMutateDeleteComment.ts';
 import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.tsx';
 import { GlobalProviders } from './GlobalProviders.tsx';
-import { HelpScreen } from './HelpScreen.tsx';
 import { getRepoRoot } from '../lib/db.ts';
 import { useTuiStore } from './useTuiStore.ts';
 import { tuiStore } from './store.ts';
@@ -55,6 +55,7 @@ const AppInner: React.FC = () => {
   const resolveMutation = useMutateResolveComment();
   const unresolveMutation = useMutateUnresolveComment();
   const setStatusMutation = useMutateSetStatus();
+  const deleteMutation = useMutateDeleteComment();
 
   // ── sync comment count ───────────────────────────────────────────
 
@@ -154,8 +155,15 @@ const AppInner: React.FC = () => {
           process.stdout.write(shortId);
         },
       },
+      {
+        key: 'd',
+        label: 'Delete',
+        action: () => {
+          deleteMutation.mutate(shortId);
+        },
+      },
     ];
-  }, [selectedComment, resolveMutation, unresolveMutation, setStatusMutation]);
+  }, [selectedComment, resolveMutation, unresolveMutation, setStatusMutation, deleteMutation]);
 
   // ── keyboard ─────────────────────────────────────────────────────
 
@@ -225,7 +233,7 @@ const AppInner: React.FC = () => {
         <Text bold>agent-comments</Text>
         <Text dimColor>  {repoRoot}</Text>
         <Text dimColor>  {filtered.length} comment{filtered.length !== 1 ? 's' : ''}</Text>
-        <Text dimColor>  [? help]</Text>
+        <Text dimColor>  [? actions]</Text>
         {state.filter ? <Text color="yellow">  filter: "{state.filter}"</Text> : null}
         {!state.showResolved && <Text color="yellow">  hiding resolved</Text>}
       </Box>
@@ -327,12 +335,6 @@ const AppInner: React.FC = () => {
         </Box>
       )}
 
-      {/* footer: help */}
-      {state.mode === 'help' && (
-        <Box marginTop={1} borderStyle="round" paddingX={1}>
-          <HelpScreen onClose={() => tuiStore.dispatch({ type: 'tui/closeHelp' })} />
-        </Box>
-      )}
       </Box>
   );
 };

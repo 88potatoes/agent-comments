@@ -129,25 +129,27 @@ describe('tuiStore', () => {
       expect(tuiStore.getState().showResolved).toBe(true);
     });
 
-    it('Enter opens popup mode', () => {
+    it('? opens popup mode', () => {
       const s = { ...fresh(), commentCount: 3 };
       tuiStore.setState(s);
-      tuiStore.dispatch(key('', { return: true }));
+      tuiStore.dispatch(key('?'));
       expect(tuiStore.getState().mode).toBe('popup');
       expect(tuiStore.getState().popupIndex).toBe(0);
     });
 
-    it('Enter does nothing when no comments', () => {
+    it('? does nothing when no comments', () => {
+      tuiStore.dispatch(key('?'));
+      expect(tuiStore.getState().mode).toBe('normal');
+    });
+
+    it('Enter does nothing in normal mode', () => {
+      const s = { ...fresh(), commentCount: 3 };
+      tuiStore.setState(s);
       tuiStore.dispatch(key('', { return: true }));
       expect(tuiStore.getState().mode).toBe('normal');
     });
 
-    it('? opens help mode', () => {
-      tuiStore.dispatch(key('?'));
-      expect(tuiStore.getState().mode).toBe('help');
-    });
-
-    it('/ opens filter mode', () => {
+    it('/ (pre-fills filter)', () => {
       tuiStore.dispatch(key('/'));
       expect(tuiStore.getState().mode).toBe('filter');
     });
@@ -156,6 +158,7 @@ describe('tuiStore', () => {
       const s = { ...fresh(), filter: 'src' };
       tuiStore.setState(s);
       tuiStore.dispatch(key('/'));
+      expect(tuiStore.getState().mode).toBe('filter');
       expect(tuiStore.getState().filterInput).toBe('src');
     });
 
