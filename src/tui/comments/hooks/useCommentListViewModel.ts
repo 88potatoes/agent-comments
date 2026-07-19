@@ -1,14 +1,11 @@
 import { useMemo } from 'react';
-import type { CommentEntity } from '../../../comments/comments.domain.ts';
 import type { CommentListViewModel } from '../view-model.ts';
 import { useTuiStore } from '../../store.ts';
 import { toCommentListViewModel } from '../logic.ts';
 import { useQueryComments } from '../../hooks/comments/useQueryComments.ts';
 
-export function useCommentListViewModel(): {
-  vm: CommentListViewModel;
-  comments: CommentEntity[];
-} {
+/** Returns the view model for the comment list. Does NOT expose CommentEntity. */
+export function useCommentListViewModel(): { vm: CommentListViewModel } {
   const state = useTuiStore();
   const { data: comments = [] } = useQueryComments();
 
@@ -17,5 +14,5 @@ export function useCommentListViewModel(): {
     [comments, state],
   );
 
-  return { vm, comments };
+  return { vm };
 }

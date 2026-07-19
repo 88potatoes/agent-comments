@@ -1,93 +1,57 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text, useFocus } from 'ink';
-import { useQueryClient } from '@tanstack/react-query';
 import { GlobalProviders } from './GlobalProviders.tsx';
-import { useTuiStore } from './store.ts';
 import { CommentList } from './comments/components/CommentList.tsx';
 import { HelpScreen } from './HelpScreen.tsx';
 import { useHandleInput } from './useHandleInput.ts';
-import { openInEditor } from './openInEditor.ts';
+import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
 import { useCommentListViewModel } from './comments/hooks/useCommentListViewModel.ts';
 
 // ── App ───────────────────────────────────────────────────────────
 
 const AppInner: React.FC = () => {
-  const state = useTuiStore();
-  const queryClient = useQueryClient();
   const { isFocused } = useFocus();
 
-  // ── data + view model ────────────────────────────────────────────
+  // ── data ─────────────────────────────────────────────────────────
 
-  const { vm, comments } = useCommentListViewModel();
+  const { vm } = useCommentListViewModel();
+
+  // ── commands (single entry point for all actions) ────────────────
+
+  const commands = useCommentCommands({
+    totalCommentCount: vm.totalCount,
+    rows: vm.rows,
+  });
+
+  // ── keyboard input ───────────────────────────────────────────────
+
+  useHandleInput(commands);
 
   // ── invalidate on focus ──────────────────────────────────────────
 
   useEffect(() => {
     if (isFocused) {
-      void queryClient.invalidateQueries({ queryKey: ['comments'] });
+      commands.refresh();
     }
-  }, [isFocused, queryClient]);
-
-  // ── keyboard input ───────────────────────────────────────────────
-
-  useHandleInput(vm, comments);
-
-  // ── help action handler ────────────────────────────────────────
-
-  const handleHelpAction = useCallback(
-    (actionKey: string) => {
-      const s = useTuiStore.getState();
-      switch (actionKey) {
-        case 'r':
-          void queryClient.invalidateQueries({ queryKey: ['comments'] });
-          break;
-        case 'R':
-          s.toggleShowResolved();
-          break;
-        case 'e': {
-          const c = comments[s.hoveredCommentIndex];
-          if (c) openInEditor(c);
-          break;
-        }
-        case '/':
-          s.setInputMode('list-filter');
-          break;
-        case 'Esc':
-          s.setFilter('');
-          s.setHoveredCommentIndex(0);
-          break;
-        case 'Enter':
-          s.setInputMode('list');
-          s.setHoveredCommentIndex(0);
-          break;
-        case '?':
-          // just close help (already handled by onClose)
-          break;
-        case 'q':
-          process.exit(0);
-          break;
-      }
-    },
-    [queryClient, comments, state.inputMode],
-  );
+  }, [isFocused, commands.refresh]);
 
   // ── render ───────────────────────────────────────────────────────
 
   return (
     <Box flexDirection="column">
       <CommentList vm={vm} />
-      {state.inputMode === 'help' && (
+      {commands.inputMode === 'help' && (
         <>
           <Text dimColor>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <HelpScreen
             mode="list"
-            hasFilter={state.filter.length > 0}
-            hasComments={comments.length > 0}
-            onClose={() => {
-              useTuiStore.getState().setInputMode('list');
-              useTuiStore.getState().setHoveredHelpIndex(0);
-            }}
-            onAction={handleHelpAction}
+            hasFilter={commands.filter.length > 0}
+            hasComments={vm.totalCount > 0}
+            hoveredHelpIndex={commands.hoveredHelpIndex}
+            onClose={commands.closeHelp}
+            onMoveUp={commands.helpMoveUp}
+            onMoveDown={commands.helpMoveDown}
+            onActivate={commands.helpActivate}
           />
         </>
       )}

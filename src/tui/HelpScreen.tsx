@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { useTuiStore, clampIndex } from './store.ts';
 import type { InputMode } from './store.ts';
 
 // ── keymap entry ───────────────────────────────────────────────
 
-type KeymapEntry = {
+export type KeymapEntry = {
   keys: string;
   description: string;
   /** The key to simulate when Enter is pressed on this row. Entry is only hoverable if set. */
@@ -19,9 +18,9 @@ const globalKeymaps: KeymapEntry[] = [
   { keys: 'q', description: 'Quit', action: 'q' },
 ];
 
-// ── context-aware local entries ────────────────────────────────
+// ── context-aware local entries (pure function) ────────────────
 
-function buildLocalKeymaps(
+export function buildLocalKeymaps(
   mode: InputMode,
   hasFilter: boolean,
   hasComments: boolean,
@@ -69,9 +68,11 @@ export interface HelpScreenProps {
   mode: InputMode;
   hasFilter: boolean;
   hasComments: boolean;
+  hoveredHelpIndex: number;
   onClose: () => void;
-  /** Called with the action key when Enter is pressed on a hovered row. */
-  onAction: (actionKey: string) => void;
+  onMoveUp: (totalEntries: number) => void;
+  onMoveDown: (totalEntries: number) => void;
+  onActivate: (actionKey: string) => void;
 }
 
 // ── component ──────────────────────────────────────────────────
@@ -80,10 +81,12 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({
   mode,
   hasFilter,
   hasComments,
+  hoveredHelpIndex,
   onClose,
-  onAction,
+  onMoveUp,
+  onMoveDown,
+  onActivate,
 }) => {
-  const state = useTuiStore();
   const locals = useMemo(
     () => buildLocalKeymaps(mode, hasFilter, hasComments),
     [mode, hasFilter, hasComments],
@@ -104,24 +107,19 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({
 
     // navigate
     if (key.upArrow || input === 'k') {
-      useTuiStore.getState().setHoveredHelpIndex(
-        clampIndex(state.hoveredHelpIndex - 1, allEntries.length),
-      );
+      onMoveUp(allEntries.length);
       return;
     }
     if (key.downArrow || input === 'j') {
-      useTuiStore.getState().setHoveredHelpIndex(
-        clampIndex(state.hoveredHelpIndex + 1, allEntries.length),
-      );
+      onMoveDown(allEntries.length);
       return;
     }
 
     // activate
     if (key.return) {
-      const entry = allEntries[state.hoveredHelpIndex];
+      const entry = allEntries[hoveredHelpIndex];
       if (entry?.action) {
-        onClose();
-        onAction(entry.action);
+        onActivate(entry.action);
       }
     }
   });
@@ -135,7 +133,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({
         <Text bold>{title}</Text>
         {entries.map((k, i) => {
           const globalIdx = startIndex + i;
-          const isHovered = globalIdx === state.hoveredHelpIndex && allEntries.length > 0;
+          const isHovered = globalIdx === hoveredHelpIndex && allEntries.length > 0;
           return (
             <Box key={k.keys}>
               <Text inverse={isHovered}>{k.keys.padEnd(keysWidth)}</Text>

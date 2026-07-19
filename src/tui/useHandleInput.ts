@@ -1,114 +1,197 @@
 import { useInput } from 'ink';
-import { useQueryClient } from '@tanstack/react-query';
-import type { CommentEntity } from '../comments/comments.domain.ts';
-import type { CommentListViewModel } from './comments/view-model.ts';
-import { useTuiStore, clampIndex, type TuiKey } from './store.ts';
-import { openInEditor } from './openInEditor.ts';
+import { debug } from './debug.ts';
 
-// ── handlers ───────────────────────────────────────────────────
+// ── types ──────────────────────────────────────────────────────
+
+interface UseHandleInputDeps {
+  inputMode: string;
+  filter: string;
+  moveUp: () => void;
+  moveDown: () => void;
+  openFilter: () => void;
+  clearFilter: () => void;
+  toggleResolved: () => void;
+  filterType: (char: string) => void;
+  filterBackspace: () => void;
+  filterApply: () => void;
+  filterCancel: () => void;
+  openHelp: () => void;
+  closeHelp: () => void;
+  refresh: () => void;
+  editComment: () => void;
+  quit: () => void;
+}
+
+// ── hook ───────────────────────────────────────────────────────
+
+export function useHandleInput(deps: UseHandleInputDeps) {
+  const {
+    inputMode,
+    filter,
+    moveUp,
+    moveDown,
+    openFilter,
+    clearFilter,
+    toggleResolved,
+    filterType,
+    filterBackspace,
+    filterApply,
+    filterCancel,
+    openHelp,
+    closeHelp,
+    refresh,
+    editComment,
+    quit,
+  } = deps;
+
+  useInput((input, key) => {
+    switch (inputMode) {
+      case 'list':
+        handleListInput(input, key, {
+          filter,
+          moveUp,
+          moveDown,
+          openFilter,
+          clearFilter,
+          toggleResolved,
+          openHelp,
+          refresh,
+          editComment,
+          quit,
+        });
+        break;
+      case 'list-filter':
+        handleListFilterInput(input, key, {
+          filterType,
+          filterBackspace,
+          filterApply,
+          filterCancel,
+        });
+        break;
+      case 'help':
+        handleHelpInput(input, key, { closeHelp });
+        break;
+    }
+  });
+}
+
+// ── list handler ───────────────────────────────────────────────
+
+export interface ListDeps {
+  filter: string;
+  moveUp: () => void;
+  moveDown: () => void;
+  openFilter: () => void;
+  clearFilter: () => void;
+  toggleResolved: () => void;
+  openHelp: () => void;
+  refresh: () => void;
+  editComment: () => void;
+  quit: () => void;
+}
 
 export function handleListInput(
   input: string,
-  key: TuiKey,
-  vm: CommentListViewModel,
-  comments: CommentEntity[],
-  queryClient: ReturnType<typeof useQueryClient>,
+  key: { upArrow?: boolean; downArrow?: boolean; escape?: boolean },
+  deps: ListDeps,
 ) {
-  // side-effect keys
-  if (input === 'r') {
-    void queryClient.invalidateQueries({ queryKey: ['comments'] });
-    return;
-  }
-  if (input === 'e') {
-    const selectedRow = vm.rows.find((r) => r.isSelected);
-    const c = selectedRow ? comments.find((x) => x.id === selectedRow.id) : undefined;
-    if (c) openInEditor(c);
-    return;
-  }
-  if (input === 'q' || input === 'Q') {
-    process.exit(0);
-  }
-
-  const s = useTuiStore.getState();
-
+  debug('input', input);
 
   // navigation
   if (key.upArrow || input === 'k') {
-    s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex - 1, vm.totalCount));
+    deps.moveUp();
     return;
   }
   if (key.downArrow || input === 'j') {
-    s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex + 1, vm.totalCount));
+    deps.moveDown();
+    return;
+  }
+
+  // side effects
+  if (input === 'r') {
+    deps.refresh();
+    return;
+  }
+  if (input === 'e') {
+    deps.editComment();
+    return;
+  }
+  if (input === 'q' || input === 'Q') {
+    deps.quit();
     return;
   }
 
   // toggles / mode switches
   if (input === 'R') {
-    s.toggleShowResolved();
+    deps.toggleResolved();
     return;
   }
   if (input === '/') {
-    s.setInputMode('list-filter');
+    deps.openFilter();
     return;
   }
-  if (key.escape && s.filter) {
-    s.setFilter('');
-    s.setHoveredCommentIndex(0);
+  if (key.escape && deps.filter) {
+    deps.clearFilter();
     return;
   }
   if (input === '?') {
-    s.setInputMode('help');
+    deps.openHelp();
     return;
   }
 }
 
-export function handleListFilterInput(input: string, key: TuiKey) {
-  const s = useTuiStore.getState();
+// ── filter handler ─────────────────────────────────────────────
 
+export interface FilterDeps {
+  filterType: (char: string) => void;
+  filterBackspace: () => void;
+  filterApply: () => void;
+  filterCancel: () => void;
+}
+
+export function handleListFilterInput(
+  input: string,
+  key: {
+    escape?: boolean;
+    return?: boolean;
+    backspace?: boolean;
+    delete?: boolean;
+    ctrl?: boolean;
+    meta?: boolean;
+    tab?: boolean;
+  },
+  deps: FilterDeps,
+) {
   if (key.escape) {
-    s.setInputMode('list');
-    s.setFilter('');
+    deps.filterCancel();
     return;
   }
   if (key.return) {
-    s.setInputMode('list');
-    s.setHoveredCommentIndex(0);
+    deps.filterApply();
     return;
   }
   if (key.backspace || key.delete) {
-    s.setFilter(s.filter.slice(0, -1));
+    deps.filterBackspace();
     return;
   }
   if (input && !key.ctrl && !key.meta && !key.tab) {
-    s.setFilter(s.filter + input);
+    deps.filterType(input);
     return;
   }
 }
 
-export function handleHelpInput(input: string, key: TuiKey) {
-  if (key.escape || input === 'q' || input === '?') {
-    useTuiStore.getState().setInputMode('list');
-  }
+// ── help handler ───────────────────────────────────────────────
+
+export interface HelpDeps {
+  closeHelp: () => void;
 }
 
-// ── hook ───────────────────────────────────────────────────────
-
-export function useHandleInput(
-  vm: CommentListViewModel,
-  comments: CommentEntity[],
+export function handleHelpInput(
+  input: string,
+  key: { escape?: boolean },
+  deps: HelpDeps,
 ) {
-  const queryClient = useQueryClient();
-  const inputMode = useTuiStore((s) => s.inputMode);
-
-  useInput((input, key) => {
-    switch (inputMode) {
-      case 'list':
-        handleListInput(input, key, vm, comments, queryClient);
-        break;
-      case 'list-filter':
-        handleListFilterInput(input, key);
-        break;
-
-    }
-  });
+  if (key.escape || input === 'q' || input === '?') {
+    deps.closeHelp();
+  }
 }
