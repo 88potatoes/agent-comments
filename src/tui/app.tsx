@@ -10,6 +10,7 @@ import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveCo
 import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
 import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.tsx';
 import { GlobalProviders } from './GlobalProviders.tsx';
+import { HelpScreen } from './HelpScreen.tsx';
 import { getRepoRoot } from '../lib/db.ts';
 
 // ── open in editor ───────────────────────────────────────────────
@@ -44,7 +45,7 @@ const AppInner: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [showResolved, setShowResolved] = useState(true);
-  const [mode, setMode] = useState<'normal' | 'filter' | 'popup'>('normal');
+  const [mode, setMode] = useState<'normal' | 'filter' | 'popup' | 'help'>('normal');
   const [filterInput, setFilterInput] = useState('');
   const [popupIndex, setPopupIndex] = useState(0);
   const { stdout } = useStdout();
@@ -170,6 +171,9 @@ const AppInner: React.FC = () => {
   // ── keyboard ─────────────────────────────────────────────────────
 
   useInput((input, key) => {
+    // help mode — handled by HelpScreen component
+    if (mode === 'help') return;
+
     // popup mode
     if (mode === 'popup') {
       if (key.escape || input === 'q') {
@@ -223,6 +227,8 @@ const AppInner: React.FC = () => {
         setMode('popup');
         setPopupIndex(0);
       }
+    } else if (input === '?') {
+      setMode('help');
     } else if (input === '/') {
       setMode('filter');
       setFilterInput(filter);
@@ -250,6 +256,7 @@ const AppInner: React.FC = () => {
         <Text bold>agent-comments</Text>
         <Text dimColor>  {repoRoot}</Text>
         <Text dimColor>  {filtered.length} comment{filtered.length !== 1 ? 's' : ''}</Text>
+        <Text dimColor>  [? help]</Text>
         {filter ? <Text color="yellow">  filter: "{filter}"</Text> : null}
         {!showResolved && <Text color="yellow">  hiding resolved</Text>}
       </Box>
