@@ -2,19 +2,13 @@ import React, { useMemo, useEffect } from 'react';
 import { useInput, useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
 import { spawn } from 'node:child_process';
-import { CommentStatus } from '../comments/comments.domain.ts';
 import type { CommentEntity } from '../comments/comments.domain.ts';
 import { useQueryComments } from './hooks/comments/useQueryComments.ts';
-import { useMutateResolveComment } from './hooks/comments/useMutateResolveComment.ts';
-import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveComment.ts';
-import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
-import { useMutateDeleteComment } from './hooks/comments/useMutateDeleteComment.ts';
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { getRepoRoot } from '../lib/db.ts';
 import { useTuiStore } from './useTuiStore.ts';
 import { tuiStore } from './store.ts';
-import { toCommentListViewModel, filterComments } from './comments/logic.ts';
-import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
+import { toCommentListViewModel } from './comments/logic.ts';
 import { CommentList } from './comments/components/CommentList.tsx';
 
 // ── open in editor ───────────────────────────────────────────────
@@ -42,35 +36,10 @@ const AppInner: React.FC = () => {
   const state = useTuiStore();
   const queryClient = useQueryClient();
   const { isFocused } = useFocus();
-  const commands = useCommentCommands();
 
   // ── server data ──────────────────────────────────────────────────
 
   const { data: comments = [] } = useQueryComments();
-
-  const resolveMutation = useMutateResolveComment();
-  const unresolveMutation = useMutateUnresolveComment();
-  const setStatusMutation = useMutateSetStatus();
-  const deleteMutation = useMutateDeleteComment();
-
-  // ── sync comment count to store ──────────────────────────────────
-
-  const filtered = useMemo(
-    () => filterComments(comments, state.filter, state.showResolved),
-    [comments, state.filter, state.showResolved],
-  );
-
-  useEffect(() => {
-    tuiStore.dispatch({ type: 'tui/setCommentCount', count: filtered.length });
-  }, [filtered.length]);
-
-  // ── invalidate on focus ──────────────────────────────────────────
-
-  useEffect(() => {
-    if (isFocused) {
-      void queryClient.invalidateQueries({ queryKey: ['comments'] });
-    }
-  }, [isFocused, queryClient]);
 
   // ── view model ───────────────────────────────────────────────────
 
@@ -81,10 +50,26 @@ const AppInner: React.FC = () => {
     [comments, state, repoRoot],
   );
 
+  // ── sync comment count to store ──────────────────────────────────
+
+  useEffect(() => {
+    tuiStore.dispatch({ type: 'tui/setCommentCount', count: vm.totalCount });
+  }, [vm.totalCount]);
+
   // ── selected comment (for side effects) ──────────────────────────
 
-  const clampedIndex = Math.min(state.selectedIndex, Math.max(0, filtered.length - 1));
-  const selectedComment: CommentEntity | undefined = filtered[clampedIndex];
+  const selectedRow = vm.rows.find((r) => r.isSelected);
+  const selectedComment: CommentEntity | undefined = selectedRow
+    ? comments.find((c) => c.id === selectedRow.id)
+    : undefined;
+
+  // ── invalidate on focus ──────────────────────────────────────────
+
+  useEffect(() => {
+    if (isFocused) {
+      void queryClient.invalidateQueries({ queryKey: ['comments'] });
+    }
+  }, [isFocused, queryClient]);
 
   // ── keyboard (side effects only) ─────────────────────────────────
 
@@ -101,30 +86,6 @@ const AppInner: React.FC = () => {
       }
       if (input === 'q' || input === 'Q') {
         process.exit(0);
-        return;
-      }
-    }
-
-    // Side-effect keys in popup mode
-    if (state.mode === 'popup' && vm.popup) {
-      if (key.return) {
-        handlePopupAction(
-          vm.popup.actions[state.popupIndex]?.key,
-          selectedComment,
-          { resolveMutation, unresolveMutation, setStatusMutation, deleteMutation },
-        );
-        commands.closePopup();
-        return;
-      }
-      // Direct key press
-      const match = vm.popup.actions.find((a) => a.key === input);
-      if (match) {
-        const closed = handlePopupAction(
-          match.key,
-          selectedComment,
-          { resolveMutation, unresolveMutation, setStatusMutation, deleteMutation },
-        );
-        if (closed) commands.closePopup();
         return;
       }
     }
@@ -151,53 +112,6 @@ const AppInner: React.FC = () => {
 
   return <CommentList vm={vm} />;
 };
-
-// ── popup action handler (side effects) ───────────────────────────
-
-type Mutations = {
-  resolveMutation: ReturnType<typeof useMutateResolveComment>;
-  unresolveMutation: ReturnType<typeof useMutateUnresolveComment>;
-  setStatusMutation: ReturnType<typeof useMutateSetStatus>;
-  deleteMutation: ReturnType<typeof useMutateDeleteComment>;
-};
-
-function handlePopupAction(
-  key: string | undefined,
-  comment: CommentEntity | undefined,
-  m: Mutations,
-): boolean {
-  if (!key || !comment) return false;
-  const shortId = comment.id.slice(0, 8);
-
-  switch (key) {
-    case 'r': {
-      if (comment.status === CommentStatus.Draft) {
-        m.setStatusMutation.mutate({ id: shortId, status: CommentStatus.Active });
-      } else {
-        m.resolveMutation.mutate(shortId);
-      }
-      return true;
-    }
-    case 'u': {
-      m.unresolveMutation.mutate(shortId);
-      return true;
-    }
-    case 'd': {
-      m.deleteMutation.mutate(shortId);
-      return true;
-    }
-    case 'e': {
-      openInEditor(comment);
-      return false;
-    }
-    case 'y': {
-      process.stdout.write(shortId);
-      return false;
-    }
-    default:
-      return false;
-  }
-}
 
 // ── export ────────────────────────────────────────────────────────
 

@@ -26,8 +26,6 @@ export type PopupActionViewModel = {
 
 export type CommentPopupViewModel = {
   comment: CommentRowViewModel;
-  headerFileLine: string;
-  headerMessage: string;
   actions: PopupActionViewModel[];
   selectedActionIndex: number;
 };

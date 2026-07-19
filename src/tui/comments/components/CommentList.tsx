@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import type { CommentListViewModel } from '../view-model.ts';
 import { CommentRow } from './CommentRow.tsx';
-import { CommentPopup } from './CommentPopup.tsx';
 import { FilterBar } from './FilterBar.tsx';
 
 type CommentListProps = {
@@ -102,9 +101,6 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
 
       {/* footer: filter */}
       {vm.filterBar && <FilterBar filterBar={vm.filterBar} />}
-
-      {/* footer: popup */}
-      {vm.popup && <CommentPopup popup={vm.popup} />}
     </Box>
   );
 };

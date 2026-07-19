@@ -53,10 +53,6 @@ function clampIndex(idx: number, count: number): number {
   return Math.max(0, Math.min(idx, count - 1));
 }
 
-function clampPopup(idx: number, max: number): number {
-  return Math.max(0, Math.min(idx, max - 1));
-}
-
 // ── reducer ────────────────────────────────────────────────────
 
 const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
@@ -78,7 +74,8 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
       const { input, key } = action;
       const count = state.commentCount;
 
-      // ── popup mode ───────────────────────────────────────────
+      // ── popup mode (commented out for now) ─────────────────
+      /*
       if (state.mode === 'popup') {
         if (key.escape || input === 'q') {
           return { ...state, mode: 'normal' };
@@ -89,9 +86,9 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
         if (key.downArrow || input === 'j') {
           return { ...state, popupIndex: clampPopup(state.popupIndex + 1, 99) };
         }
-        // Enter and direct key presses handled externally (they trigger side effects)
         return state;
       }
+      */
 
       // ── filter mode ──────────────────────────────────────────
       if (state.mode === 'filter') {
@@ -126,9 +123,7 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
         return { ...state, showResolved: !state.showResolved, selectedIndex: 0 };
       }
       if (input === '?') {
-        if (count > 0) {
-          return { ...state, mode: 'popup', popupIndex: 0 };
-        }
+        // popup disabled for now
         return state;
       }
       if (input === '/') {

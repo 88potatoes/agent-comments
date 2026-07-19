@@ -129,15 +129,9 @@ describe('tuiStore', () => {
       expect(tuiStore.getState().showResolved).toBe(true);
     });
 
-    it('? opens popup mode', () => {
+    it('? does nothing (popup disabled)', () => {
       const s = { ...fresh(), commentCount: 3 };
       tuiStore.setState(s);
-      tuiStore.dispatch(key('?'));
-      expect(tuiStore.getState().mode).toBe('popup');
-      expect(tuiStore.getState().popupIndex).toBe(0);
-    });
-
-    it('? does nothing when no comments', () => {
       tuiStore.dispatch(key('?'));
       expect(tuiStore.getState().mode).toBe('normal');
     });
@@ -245,71 +239,15 @@ describe('tuiStore', () => {
     });
   });
 
-  describe('popup mode', () => {
-    it('q closes popup', () => {
-      const s = { ...fresh(), mode: 'popup' as const };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('q'));
-      expect(tuiStore.getState().mode).toBe('normal');
-    });
-
-    it('Esc closes popup', () => {
-      const s = { ...fresh(), mode: 'popup' as const };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('', { escape: true }));
-      expect(tuiStore.getState().mode).toBe('normal');
-    });
-
-    it('j moves popup selection down', () => {
-      const s = { ...fresh(), mode: 'popup' as const };
+  describe('popup mode (disabled for now)', () => {
+    it('popup keys fall through to normal mode', () => {
+      const s = { ...fresh(), mode: 'popup' as const, commentCount: 3, selectedIndex: 0 };
       tuiStore.setState(s);
       tuiStore.dispatch(key('j'));
-      expect(tuiStore.getState().popupIndex).toBe(1);
-    });
-
-    it('k moves popup selection up', () => {
-      const s = { ...fresh(), mode: 'popup' as const, popupIndex: 2 };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('k'));
-      expect(tuiStore.getState().popupIndex).toBe(1);
-    });
-
-    it('popup navigation clamps at 0', () => {
-      const s = { ...fresh(), mode: 'popup' as const };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('k'));
-      expect(tuiStore.getState().popupIndex).toBe(0);
-    });
-
-    it('Enter does not change state (handled externally)', () => {
-      const s = { ...fresh(), mode: 'popup' as const, popupIndex: 1 };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('', { return: true }));
-      expect(tuiStore.getState().popupIndex).toBe(1);
-      expect(tuiStore.getState().mode).toBe('popup');
-    });
-
-    it('direct key press (e.g. r) does not change state (handled externally)', () => {
-      const s = { ...fresh(), mode: 'popup' as const };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('r'));
+      // falls through to normal mode j → selectedIndex + 1
+      expect(tuiStore.getState().selectedIndex).toBe(1);
       expect(tuiStore.getState().mode).toBe('popup');
     });
   });
 
-  describe('help mode', () => {
-    it('ignores all keys', () => {
-      const s = { ...fresh(), mode: 'help' as const };
-      tuiStore.setState(s);
-      tuiStore.dispatch(key('j'));
-      tuiStore.dispatch(key('k'));
-      tuiStore.dispatch(key('r'));
-      tuiStore.dispatch(key('?'));
-      tuiStore.dispatch(key('q'));
-      tuiStore.dispatch(key('', { return: true }));
-      tuiStore.dispatch(key('', { escape: true }));
-      expect(tuiStore.getState().mode).toBe('help');
-      expect(tuiStore.getState().selectedIndex).toBe(0);
-    });
-  });
 });

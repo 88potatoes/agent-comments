@@ -9,10 +9,8 @@ import type { TuiState } from '../store.ts';
 import { statusIcon, statusColor } from '../helpers.tsx';
 import type {
   CommentRowViewModel,
-  CommentPopupViewModel,
   CommentListViewModel,
   FilterBarViewModel,
-  PopupActionViewModel,
 } from './view-model.ts';
 
 // ── filtering ──────────────────────────────────────────────────
@@ -55,8 +53,8 @@ export function toCommentRowViewModel(
   };
 }
 
-// ── popup actions ──────────────────────────────────────────────
-
+// ── popup actions (commented out for now) ──────────────────────
+/*
 export function getPopupActionDescriptors(
   comment: CommentEntity,
 ): PopupActionViewModel[] {
@@ -78,6 +76,7 @@ export function getPopupActionDescriptors(
   actions.push({ key: 'd', label: 'Delete' });
   return actions;
 }
+*/
 
 // ── whole list ─────────────────────────────────────────────────
 
@@ -94,20 +93,19 @@ export function toCommentListViewModel(
     toCommentRowViewModel(c, i === clampedIndex),
   );
 
-  // popup
+  // popup (commented out for now)
+  const popup = null;
+  /*
   let popup: CommentPopupViewModel | null = null;
   if (state.mode === 'popup' && filtered.length > 0) {
     const selected = filtered[clampedIndex];
     popup = {
       comment: toCommentRowViewModel(selected, false),
-      headerFileLine: selected.startLine === selected.endLine
-        ? `${selected.file}:${selected.startLine}`
-        : `${selected.file}:${selected.startLine}-${selected.endLine}`,
-      headerMessage: selected.message,
       actions: getPopupActionDescriptors(selected),
       selectedActionIndex: state.popupIndex,
     };
   }
+  */
 
   // filter bar
   let filterBar: FilterBarViewModel | null = null;
