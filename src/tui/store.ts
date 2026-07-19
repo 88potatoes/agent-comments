@@ -7,7 +7,7 @@ export type InputMode = 'normal' | 'filter' | 'popup' | 'help';
 
 export type TuiState = {
   inputMode: InputMode;
-  selectedIndex: number;
+  hoveredCommentIndex: number;
   filter: string;
   showResolved: boolean;
   popupIndex: number;
@@ -30,7 +30,7 @@ export type TuiKey = {
 interface TuiActions {
   setInputMode: (inputMode: InputMode) => void;
   setFilter: (filter: string) => void;
-  setSelectedIndex: (selectedIndex: number) => void;
+  setHoveredCommentIndex: (hoveredCommentIndex: number) => void;
   toggleShowResolved: () => void;
   applyPatch: (patch: Partial<TuiState>) => void;
 }
@@ -48,7 +48,7 @@ const settings = loadSettings();
 
 const initialState: TuiState = {
   inputMode: 'normal',
-  selectedIndex: 0,
+  hoveredCommentIndex: 0,
   filter: '',
   showResolved: settings.showResolved,
   popupIndex: 0,
@@ -61,8 +61,8 @@ export const useTuiStore = create<TuiState & TuiActions>((set) => ({
 
   setInputMode: (inputMode) => set({ inputMode }),
   setFilter: (filter) => set({ filter }),
-  setSelectedIndex: (selectedIndex) => set({ selectedIndex }),
-  toggleShowResolved: () => set((s) => ({ showResolved: !s.showResolved, selectedIndex: 0 })),
+  setHoveredCommentIndex: (hoveredCommentIndex) => set({ hoveredCommentIndex }),
+  toggleShowResolved: () => set((s) => ({ showResolved: !s.showResolved, hoveredCommentIndex: 0 })),
   applyPatch: (patch) => set(patch),
 }));
 

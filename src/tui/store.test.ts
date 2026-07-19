@@ -5,7 +5,7 @@ import { reduceKey } from './useHandleInput.ts';
 function fresh(): TuiState {
   return {
     inputMode: 'normal',
-    selectedIndex: 0,
+    hoveredCommentIndex: 0,
     filter: '',
     showResolved: true,
     popupIndex: 0,
@@ -38,43 +38,43 @@ describe('reduceKey', () => {
   describe('normal mode — navigation', () => {
     it('j / downArrow moves down', () => {
       const patch = act(fresh(), key('j'), 5);
-      expect(patch).toEqual({ selectedIndex: 1 });
+      expect(patch).toEqual({ hoveredCommentIndex: 1 });
     });
 
     it('k / upArrow moves up', () => {
-      const s = { ...fresh(), selectedIndex: 2 };
+      const s = { ...fresh(), hoveredCommentIndex: 2 };
       const patch = act(s, key('k'), 5);
-      expect(patch).toEqual({ selectedIndex: 1 });
+      expect(patch).toEqual({ hoveredCommentIndex: 1 });
     });
 
     it('upArrow clamps at 0', () => {
       const patch = act(fresh(), key('k'), 3);
-      expect(patch).toEqual({ selectedIndex: 0 });
+      expect(patch).toEqual({ hoveredCommentIndex: 0 });
     });
 
     it('downArrow clamps at last item', () => {
-      const s = { ...fresh(), selectedIndex: 2 };
+      const s = { ...fresh(), hoveredCommentIndex: 2 };
       const patch = act(s, key('j'), 3);
-      expect(patch).toEqual({ selectedIndex: 2 });
+      expect(patch).toEqual({ hoveredCommentIndex: 2 });
     });
 
     it('clamps correctly with zero totalCount', () => {
       const patch = act(fresh(), key('j'), 0);
-      expect(patch).toEqual({ selectedIndex: 0 });
+      expect(patch).toEqual({ hoveredCommentIndex: 0 });
     });
   });
 
   describe('normal mode — toggles and modes', () => {
-    it('R toggles showResolved and resets selectedIndex', () => {
-      const s = { ...fresh(), showResolved: true, selectedIndex: 5 };
+    it('R toggles showResolved and resets hoveredCommentIndex', () => {
+      const s = { ...fresh(), showResolved: true, hoveredCommentIndex: 5 };
       const patch = act(s, key('R'), 10);
-      expect(patch).toEqual({ showResolved: false, selectedIndex: 0 });
+      expect(patch).toEqual({ showResolved: false, hoveredCommentIndex: 0 });
     });
 
     it('R toggles back', () => {
       const s = { ...fresh(), showResolved: false };
       const patch = act(s, key('R'));
-      expect(patch).toEqual({ showResolved: true, selectedIndex: 0 });
+      expect(patch).toEqual({ showResolved: true, hoveredCommentIndex: 0 });
     });
 
     it('? returns null (popup disabled)', () => {
@@ -98,10 +98,10 @@ describe('reduceKey', () => {
       expect(patch).toEqual({ inputMode: 'filter' });
     });
 
-    it('Esc clears filter and resets selectedIndex', () => {
-      const s = { ...fresh(), filter: 'src', selectedIndex: 3 };
+    it('Esc clears filter and resets hoveredCommentIndex', () => {
+      const s = { ...fresh(), filter: 'src', hoveredCommentIndex: 3 };
       const patch = act(s, key('', { escape: true }), 5);
-      expect(patch).toEqual({ filter: '', selectedIndex: 0 });
+      expect(patch).toEqual({ filter: '', hoveredCommentIndex: 0 });
     });
 
     it('Esc with no filter returns null', () => {
@@ -143,7 +143,7 @@ describe('reduceKey', () => {
     it('Enter exits filter mode (filter already applied live)', () => {
       const s = { ...fresh(), inputMode: 'filter' as const, filter: 'foo' };
       const patch = reduceKey(s, '', key('', { return: true }).key, 0);
-      expect(patch).toEqual({ inputMode: 'normal', selectedIndex: 0 });
+      expect(patch).toEqual({ inputMode: 'normal', hoveredCommentIndex: 0 });
     });
 
     it('Esc clears filter and exits', () => {
@@ -161,9 +161,9 @@ describe('reduceKey', () => {
 
   describe('popup mode (falls through to normal navigation)', () => {
     it('popup mode j moves down (falls through)', () => {
-      const s = { ...fresh(), inputMode: 'popup' as const, selectedIndex: 0 };
+      const s = { ...fresh(), inputMode: 'popup' as const, hoveredCommentIndex: 0 };
       const patch = reduceKey(s, 'j', key('j').key, 3);
-      expect(patch).toEqual({ selectedIndex: 1 });
+      expect(patch).toEqual({ hoveredCommentIndex: 1 });
     });
   });
 });

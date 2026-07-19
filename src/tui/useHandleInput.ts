@@ -16,19 +16,19 @@ export function reduceKey(
   // ── filter mode ──────────────────────────────────────────
   if (state.inputMode === 'filter') {
     if (key.escape) return { inputMode: 'normal', filter: '' };
-    if (key.return) return { inputMode: 'normal', selectedIndex: 0 };
+    if (key.return) return { inputMode: 'normal', hoveredCommentIndex: 0 };
     if (key.backspace || key.delete) return { filter: state.filter.slice(0, -1) };
     if (input && !key.ctrl && !key.meta && !key.tab) return { filter: state.filter + input };
     return null;
   }
 
   // ── normal mode ──────────────────────────────────────────
-  if (key.upArrow || input === 'k') return { selectedIndex: clampIndex(state.selectedIndex - 1, totalCount) };
-  if (key.downArrow || input === 'j') return { selectedIndex: clampIndex(state.selectedIndex + 1, totalCount) };
-  if (input === 'R') return { showResolved: !state.showResolved, selectedIndex: 0 };
+  if (key.upArrow || input === 'k') return { hoveredCommentIndex: clampIndex(state.hoveredCommentIndex - 1, totalCount) };
+  if (key.downArrow || input === 'j') return { hoveredCommentIndex: clampIndex(state.hoveredCommentIndex + 1, totalCount) };
+  if (input === 'R') return { showResolved: !state.showResolved, hoveredCommentIndex: 0 };
   if (input === '?') return null; // popup disabled
   if (input === '/') return { inputMode: 'filter' };
-  if (key.escape && state.filter) return { filter: '', selectedIndex: 0 };
+  if (key.escape && state.filter) return { filter: '', hoveredCommentIndex: 0 };
   return null;
 }
 

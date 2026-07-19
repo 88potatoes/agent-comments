@@ -5,22 +5,22 @@ import { useCallback } from 'react';
 import { useTuiStore, clampIndex } from '../../store.ts';
 
 export function useCommentCommands(totalCount: number) {
-  const selectedIndex = useTuiStore((s) => s.selectedIndex);
+  const hoveredCommentIndex = useTuiStore((s) => s.hoveredCommentIndex);
   const filter = useTuiStore((s) => s.filter);
   const inputMode = useTuiStore((s) => s.inputMode);
-  const setSelectedIndex = useTuiStore((s) => s.setSelectedIndex);
+  const setHoveredCommentIndex = useTuiStore((s) => s.setHoveredCommentIndex);
   const setInputMode = useTuiStore((s) => s.setInputMode);
   const setFilter = useTuiStore((s) => s.setFilter);
   const toggleShowResolved = useTuiStore((s) => s.toggleShowResolved);
   const applyPatch = useTuiStore((s) => s.applyPatch);
 
   const moveUp = useCallback(() => {
-    setSelectedIndex(clampIndex(selectedIndex - 1, totalCount));
-  }, [selectedIndex, totalCount, setSelectedIndex]);
+    setHoveredCommentIndex(clampIndex(hoveredCommentIndex - 1, totalCount));
+  }, [hoveredCommentIndex, totalCount, setHoveredCommentIndex]);
 
   const moveDown = useCallback(() => {
-    setSelectedIndex(clampIndex(selectedIndex + 1, totalCount));
-  }, [selectedIndex, totalCount, setSelectedIndex]);
+    setHoveredCommentIndex(clampIndex(hoveredCommentIndex + 1, totalCount));
+  }, [hoveredCommentIndex, totalCount, setHoveredCommentIndex]);
 
   const openFilter = useCallback(() => {
     setInputMode('filter');
@@ -35,7 +35,7 @@ export function useCommentCommands(totalCount: number) {
   }, [setInputMode]);
 
   const clearFilter = useCallback(() => {
-    applyPatch({ filter: '', selectedIndex: 0 });
+    applyPatch({ filter: '', hoveredCommentIndex: 0 });
   }, [applyPatch]);
 
   const toggleResolved = useCallback(() => {
@@ -66,7 +66,7 @@ export function useCommentCommands(totalCount: number) {
   }, [filter, setFilter]);
 
   const filterApply = useCallback(() => {
-    applyPatch({ inputMode: 'normal', selectedIndex: 0 });
+    applyPatch({ inputMode: 'normal', hoveredCommentIndex: 0 });
   }, [applyPatch]);
 
   const filterCancel = useCallback(() => {
