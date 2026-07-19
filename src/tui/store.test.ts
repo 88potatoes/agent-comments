@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useTuiStore, type TuiState, type TuiKey } from './store.ts';
+import { describe, it, expect } from 'vitest';
+import { type TuiState, type TuiKey } from './store.ts';
+import { reduceKey } from './useHandleInput.ts';
 
 function fresh(): TuiState {
   return {
@@ -30,191 +31,146 @@ function key(input: string, overrides: Partial<TuiKey> = {}): { input: string; k
   };
 }
 
-function act(a: ReturnType<typeof key>, totalCount = 5) {
-  useTuiStore.getState().handleKey(a.input, a.key, totalCount);
+function act(state: TuiState, a: ReturnType<typeof key>, totalCount = 5): Partial<TuiState> | null {
+  return reduceKey(state, a.input, a.key, totalCount);
 }
 
-describe('tuiStore', () => {
-  beforeEach(() => {
-    useTuiStore.setState(fresh());
-  });
-
-  describe('initial state', () => {
-    it('starts in normal mode', () => {
-      expect(useTuiStore.getState().mode).toBe('normal');
-    });
-
-    it('starts with selectedIndex 0', () => {
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
-    });
-
-    it('shows resolved by default', () => {
-      expect(useTuiStore.getState().showResolved).toBe(true);
-    });
-  });
-
-  describe('closeHelp', () => {
-    it('closes help and returns to normal', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'help' });
-      useTuiStore.getState().closeHelp();
-      expect(useTuiStore.getState().mode).toBe('normal');
-    });
-
-    it('no-ops when not in help mode', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'normal' });
-      useTuiStore.getState().closeHelp();
-      expect(useTuiStore.getState().mode).toBe('normal');
-    });
-  });
-
+describe('reduceKey', () => {
   describe('normal mode — navigation', () => {
     it('j / downArrow moves down', () => {
-      act(key('j'), 5);
-      expect(useTuiStore.getState().selectedIndex).toBe(1);
+      const patch = act({ ...fresh(), commentCount: 5 }, key('j'), 5);
+      expect(patch).toEqual({ selectedIndex: 1 });
     });
 
     it('k / upArrow moves up', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 2 });
-      act(key('k'), 5);
-      expect(useTuiStore.getState().selectedIndex).toBe(1);
+      const s = { ...fresh(), selectedIndex: 2 };
+      const patch = act(s, key('k'), 5);
+      expect(patch).toEqual({ selectedIndex: 1 });
     });
 
     it('upArrow clamps at 0', () => {
-      act(key('k'), 3);
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
+      const patch = act(fresh(), key('k'), 3);
+      expect(patch).toEqual({ selectedIndex: 0 });
     });
 
     it('downArrow clamps at last item', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 2 });
-      act(key('j'), 3);
-      expect(useTuiStore.getState().selectedIndex).toBe(2);
+      const s = { ...fresh(), selectedIndex: 2 };
+      const patch = act(s, key('j'), 3);
+      expect(patch).toEqual({ selectedIndex: 2 });
     });
 
     it('clamps correctly with zero totalCount', () => {
-      useTuiStore.setState({ ...fresh(), selectedIndex: 0 });
-      act(key('j'), 0);
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
+      const patch = act(fresh(), key('j'), 0);
+      expect(patch).toEqual({ selectedIndex: 0 });
     });
   });
 
   describe('normal mode — toggles and modes', () => {
     it('R toggles showResolved and resets selectedIndex', () => {
-      useTuiStore.setState({ ...fresh(), showResolved: true, selectedIndex: 5 });
-      act(key('R'), 10);
-      expect(useTuiStore.getState().showResolved).toBe(false);
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
+      const s = { ...fresh(), showResolved: true, selectedIndex: 5 };
+      const patch = act(s, key('R'), 10);
+      expect(patch).toEqual({ showResolved: false, selectedIndex: 0 });
     });
 
     it('R toggles back', () => {
-      useTuiStore.setState({ ...fresh(), showResolved: false });
-      act(key('R'));
-      expect(useTuiStore.getState().showResolved).toBe(true);
+      const s = { ...fresh(), showResolved: false };
+      const patch = act(s, key('R'));
+      expect(patch).toEqual({ showResolved: true, selectedIndex: 0 });
     });
 
-    it('? does nothing (popup disabled)', () => {
-      act(key('?'), 3);
-      expect(useTuiStore.getState().mode).toBe('normal');
+    it('? returns null (popup disabled)', () => {
+      const patch = act(fresh(), key('?'), 3);
+      expect(patch).toBeNull();
     });
 
-    it('Enter does nothing in normal mode', () => {
-      act(key('', { return: true }), 3);
-      expect(useTuiStore.getState().mode).toBe('normal');
+    it('Enter returns null in normal mode', () => {
+      const patch = act(fresh(), key('', { return: true }), 3);
+      expect(patch).toBeNull();
     });
 
     it('/ enters filter mode', () => {
-      act(key('/'));
-      expect(useTuiStore.getState().mode).toBe('filter');
+      const patch = act(fresh(), key('/'));
+      expect(patch).toEqual({ mode: 'filter', filterInput: '' });
     });
 
     it('/ pre-fills filter input with current filter', () => {
-      useTuiStore.setState({ ...fresh(), filter: 'src' });
-      act(key('/'));
-      expect(useTuiStore.getState().mode).toBe('filter');
-      expect(useTuiStore.getState().filterInput).toBe('src');
+      const s = { ...fresh(), filter: 'src' };
+      const patch = act(s, key('/'));
+      expect(patch).toEqual({ mode: 'filter', filterInput: 'src' });
     });
 
     it('Esc clears filter and resets selectedIndex', () => {
-      useTuiStore.setState({ ...fresh(), filter: 'src', selectedIndex: 3 });
-      act(key('', { escape: true }), 5);
-      expect(useTuiStore.getState().filter).toBe('');
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
+      const s = { ...fresh(), filter: 'src', selectedIndex: 3 };
+      const patch = act(s, key('', { escape: true }), 5);
+      expect(patch).toEqual({ filter: '', selectedIndex: 0 });
     });
 
-    it('Esc with no filter does nothing', () => {
-      act(key('', { escape: true }));
-      expect(useTuiStore.getState().mode).toBe('normal');
+    it('Esc with no filter returns null', () => {
+      const patch = act(fresh(), key('', { escape: true }));
+      expect(patch).toBeNull();
     });
   });
 
   describe('normal mode — side-effect keys (no state change)', () => {
-    it('r does not change state', () => {
-      const before = useTuiStore.getState();
-      act(key('r'));
-      expect(useTuiStore.getState()).toEqual(before);
+    it('r returns null', () => {
+      expect(act(fresh(), key('r'))).toBeNull();
     });
 
-    it('e does not change state', () => {
-      const before = useTuiStore.getState();
-      act(key('e'));
-      expect(useTuiStore.getState()).toEqual(before);
+    it('e returns null', () => {
+      expect(act(fresh(), key('e'))).toBeNull();
     });
 
-    it('q does not change state', () => {
-      const before = useTuiStore.getState();
-      act(key('q'));
-      expect(useTuiStore.getState()).toEqual(before);
+    it('q returns null', () => {
+      expect(act(fresh(), key('q'))).toBeNull();
     });
   });
 
   describe('filter mode', () => {
     it('types characters into filterInput', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter' });
-      act(key('s'));
-      act(key('r'));
-      act(key('c'));
-      expect(useTuiStore.getState().filterInput).toBe('src');
+      const s = { ...fresh(), mode: 'filter' as const };
+      expect(reduceKey(s, 's', key('s').key, 0)).toEqual({ filterInput: 's' });
+      s.filterInput = 's';
+      expect(reduceKey(s, 'r', key('r').key, 0)).toEqual({ filterInput: 'sr' });
+      s.filterInput = 'sr';
+      expect(reduceKey(s, 'c', key('c').key, 0)).toEqual({ filterInput: 'src' });
     });
 
     it('backspace removes last character', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter', filterInput: 'src' });
-      act(key('', { backspace: true }));
-      expect(useTuiStore.getState().filterInput).toBe('sr');
+      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'src' };
+      const patch = reduceKey(s, '', key('', { backspace: true }).key, 0);
+      expect(patch).toEqual({ filterInput: 'sr' });
     });
 
     it('Enter applies filter and returns to normal', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter', filterInput: 'foo' });
-      act(key('', { return: true }));
-      expect(useTuiStore.getState().mode).toBe('normal');
-      expect(useTuiStore.getState().filter).toBe('foo');
-      expect(useTuiStore.getState().selectedIndex).toBe(0);
+      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'foo' };
+      const patch = reduceKey(s, '', key('', { return: true }).key, 0);
+      expect(patch).toEqual({ filter: 'foo', mode: 'normal', selectedIndex: 0 });
     });
 
     it('Enter with whitespace trims filter', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter', filterInput: '  bar  ' });
-      act(key('', { return: true }));
-      expect(useTuiStore.getState().filter).toBe('bar');
+      const s = { ...fresh(), mode: 'filter' as const, filterInput: '  bar  ' };
+      const patch = reduceKey(s, '', key('', { return: true }).key, 0);
+      expect(patch).toEqual({ filter: '  bar  '.trim(), mode: 'normal', selectedIndex: 0 });
     });
 
     it('Esc cancels filter and clears input', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter', filterInput: 'foo' });
-      act(key('', { escape: true }));
-      expect(useTuiStore.getState().mode).toBe('normal');
-      expect(useTuiStore.getState().filterInput).toBe('');
+      const s = { ...fresh(), mode: 'filter' as const, filterInput: 'foo' };
+      const patch = reduceKey(s, '', key('', { escape: true }).key, 0);
+      expect(patch).toEqual({ mode: 'normal', filterInput: '' });
     });
 
     it('ignores ctrl/meta/tab input', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'filter' });
-      act(key('x', { ctrl: true }));
-      expect(useTuiStore.getState().filterInput).toBe('');
+      const s = { ...fresh(), mode: 'filter' as const };
+      const patch = reduceKey(s, 'x', key('x', { ctrl: true }).key, 0);
+      expect(patch).toBeNull();
     });
   });
 
-  describe('popup mode (falls through to normal)', () => {
-    it('popup keys fall through to normal mode', () => {
-      useTuiStore.setState({ ...fresh(), mode: 'popup', selectedIndex: 0 });
-      act(key('j'), 3);
-      expect(useTuiStore.getState().selectedIndex).toBe(1);
-      expect(useTuiStore.getState().mode).toBe('popup');
+  describe('popup mode (falls through to normal navigation)', () => {
+    it('popup mode j moves down (falls through)', () => {
+      const s = { ...fresh(), mode: 'popup' as const, selectedIndex: 0 };
+      const patch = reduceKey(s, 'j', key('j').key, 3);
+      expect(patch).toEqual({ selectedIndex: 1 });
     });
   });
 });

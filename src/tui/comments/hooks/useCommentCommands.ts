@@ -1,69 +1,77 @@
 // ── Comment Commands ────────────────────────────────────────────
 // Semantic wrappers around the TUI store.
-// Components call these instead of dispatching raw key events.
+// Components call these instead of mutating state directly.
 
 import { useCallback } from 'react';
-import { useTuiStore } from '../../store.ts';
+import { useTuiStore, clampIndex } from '../../store.ts';
 
-export function useCommentCommands() {
+export function useCommentCommands(totalCount: number) {
   const moveUp = useCallback(() => {
-    useTuiStore.getState().handleKey('k', {});
-  }, []);
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ selectedIndex: clampIndex(s.selectedIndex - 1, totalCount) });
+  }, [totalCount]);
 
   const moveDown = useCallback(() => {
-    useTuiStore.getState().handleKey('j', {});
-  }, []);
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ selectedIndex: clampIndex(s.selectedIndex + 1, totalCount) });
+  }, [totalCount]);
 
   const openFilter = useCallback(() => {
-    useTuiStore.getState().handleKey('/', {});
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ mode: 'filter', filterInput: s.filter });
   }, []);
 
   const openActions = useCallback(() => {
-    useTuiStore.getState().handleKey('?', {});
+    // popup disabled
   }, []);
 
   const closePopup = useCallback(() => {
-    useTuiStore.getState().handleKey('', { escape: true });
+    useTuiStore.setState({ mode: 'normal' });
   }, []);
 
   const clearFilter = useCallback(() => {
-    useTuiStore.getState().handleKey('', { escape: true });
+    useTuiStore.setState({ filter: '', selectedIndex: 0 });
   }, []);
 
   const toggleResolved = useCallback(() => {
-    useTuiStore.getState().handleKey('R', {});
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ showResolved: !s.showResolved, selectedIndex: 0 });
   }, []);
 
   const popupMoveUp = useCallback(() => {
-    useTuiStore.getState().handleKey('k', {});
+    // popup disabled
   }, []);
 
   const popupMoveDown = useCallback(() => {
-    useTuiStore.getState().handleKey('j', {});
+    // popup disabled
   }, []);
 
   const popupSelect = useCallback(() => {
-    useTuiStore.getState().handleKey('', { return: true });
+    // popup disabled
   }, []);
 
   const filterType = useCallback((char: string) => {
-    useTuiStore.getState().handleKey(char, {});
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ filterInput: s.filterInput + char });
   }, []);
 
   const filterBackspace = useCallback(() => {
-    useTuiStore.getState().handleKey('', { backspace: true });
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ filterInput: s.filterInput.slice(0, -1) });
   }, []);
 
   const filterApply = useCallback(() => {
-    useTuiStore.getState().handleKey('', { return: true });
+    const s = useTuiStore.getState();
+    useTuiStore.setState({ filter: s.filterInput.trim(), mode: 'normal', selectedIndex: 0 });
   }, []);
 
   const filterCancel = useCallback(() => {
-    useTuiStore.getState().handleKey('', { escape: true });
+    useTuiStore.setState({ mode: 'normal', filterInput: '' });
   }, []);
 
   const closeHelp = useCallback(() => {
-    useTuiStore.getState().closeHelp();
+    const s = useTuiStore.getState();
+    if (s.mode === 'help') useTuiStore.setState({ mode: 'normal' });
   }, []);
 
   return {

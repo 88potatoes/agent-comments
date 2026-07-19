@@ -1,14 +1,13 @@
 import React, { useMemo, useEffect } from 'react';
-import { useInput, useFocus } from 'ink';
+import { useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
-import type { CommentEntity } from '../comments/comments.domain.ts';
 import { useQueryComments } from './hooks/comments/useQueryComments.ts';
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { getRepoRoot } from '../lib/db.ts';
 import { useTuiStore } from './store.ts';
 import { toCommentListViewModel } from './comments/logic.ts';
 import { CommentList } from './comments/components/CommentList.tsx';
-import { openInEditor } from './openInEditor.ts';
+import { useHandleInput } from './useHandleInput.ts';
 
 // ── App ───────────────────────────────────────────────────────────
 
@@ -30,13 +29,6 @@ const AppInner: React.FC = () => {
     [comments, state, repoRoot],
   );
 
-  // ── selected comment (for side effects) ──────────────────────────
-
-  const selectedRow = vm.rows.find((r) => r.isSelected);
-  const selectedComment: CommentEntity | undefined = selectedRow
-    ? comments.find((c) => c.id === selectedRow.id)
-    : undefined;
-
   // ── invalidate on focus ──────────────────────────────────────────
 
   useEffect(() => {
@@ -45,38 +37,9 @@ const AppInner: React.FC = () => {
     }
   }, [isFocused, queryClient]);
 
-  // ── keyboard (side effects only) ─────────────────────────────────
+  // ── keyboard input ───────────────────────────────────────────────
 
-  useInput((input, key) => {
-    // Side-effect keys in normal mode
-    if (state.mode === 'normal') {
-      if (input === 'r') {
-        void queryClient.invalidateQueries({ queryKey: ['comments'] });
-        return;
-      }
-      if (input === 'e') {
-        if (selectedComment) openInEditor(selectedComment);
-        return;
-      }
-      if (input === 'q' || input === 'Q') {
-        process.exit(0);
-        return;
-      }
-    }
-
-    // Dispatch all other keys to the store
-    useTuiStore.getState().handleKey(input, {
-      upArrow: key.upArrow,
-      downArrow: key.downArrow,
-      return: key.return,
-      escape: key.escape,
-      backspace: key.backspace,
-      delete: key.delete,
-      ctrl: key.ctrl,
-      meta: key.meta,
-      tab: key.tab,
-    }, vm.totalCount);
-  });
+  useHandleInput(vm, comments);
 
   // ── render ───────────────────────────────────────────────────────
 
