@@ -61,30 +61,6 @@ export function toCommentRowViewModel(
   };
 }
 
-// ── popup actions (commented out for now) ──────────────────────
-/*
-export function getPopupActionDescriptors(
-  comment: CommentEntity,
-): PopupActionViewModel[] {
-  const canResolve = comment.status === CommentStatus.Active || comment.status === CommentStatus.Draft;
-  const canUnresolve = comment.status === CommentStatus.Resolved;
-
-  const actions: PopupActionViewModel[] = [];
-  if (canResolve) {
-    actions.push({
-      key: 'r',
-      label: comment.status === CommentStatus.Draft ? 'Activate (draft → active)' : 'Resolve',
-    });
-  }
-  if (canUnresolve) {
-    actions.push({ key: 'u', label: 'Unresolve' });
-  }
-  actions.push({ key: 'e', label: 'Open in editor' });
-  actions.push({ key: 'y', label: 'Copy ID' });
-  actions.push({ key: 'd', label: 'Delete' });
-  return actions;
-}
-*/
 
 // ── whole list ─────────────────────────────────────────────────
 
@@ -100,26 +76,11 @@ export function toCommentListViewModel(
     toCommentRowViewModel(c, i === clampedIndex),
   );
 
-  // popup (commented out for now)
-  const popup = null;
-  /*
-  let popup: CommentPopupViewModel | null = null;
-  if (state.inputMode === 'popup' && filtered.length > 0) {
-    const selected = filtered[clampedIndex];
-    popup = {
-      comment: toCommentRowViewModel(selected, false),
-      actions: getPopupActionDescriptors(selected),
-      selectedActionIndex: state.popupIndex,
-    };
-  }
-  */
-
   return {
     totalCount: filtered.length,
     filter: state.filter,
     showResolved: state.showResolved,
-    isFilterMode: state.inputMode === 'filter',
+    isFilterMode: state.inputMode === 'list-filter',
     rows,
-    popup,
   };
 }

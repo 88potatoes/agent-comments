@@ -3,14 +3,13 @@ import { loadSettings, saveSettings } from './settings.ts';
 
 // ── types ──────────────────────────────────────────────────────
 
-export type InputMode = 'normal' | 'filter' | 'popup' | 'help';
+export type InputMode = 'list' | 'list-filter' | 'help';
 
 export type TuiState = {
   inputMode: InputMode;
   hoveredCommentIndex: number;
   filter: string;
   showResolved: boolean;
-  popupIndex: number;
 };
 
 export type TuiKey = {
@@ -47,11 +46,10 @@ export function clampIndex(idx: number, count: number): number {
 const settings = loadSettings();
 
 const initialState: TuiState = {
-  inputMode: 'normal',
+  inputMode: 'list',
   hoveredCommentIndex: 0,
   filter: '',
   showResolved: settings.showResolved,
-  popupIndex: 0,
 };
 
 // ── store ──────────────────────────────────────────────────────

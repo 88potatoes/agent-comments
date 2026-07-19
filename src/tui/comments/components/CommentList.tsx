@@ -21,11 +21,9 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
   const fileColMax = Math.min(30, Math.floor(termCols * 0.32));
   const msgColMax = Math.max(10, termCols - prefixWidth - fileColMax - 2);
 
-  const popupHeight = 8;
   const headerHeight = 2;
-  const popupActive = vm.popup !== null;
   const filterActive = vm.isFilterMode;
-  const footerHeight = filterActive ? 3 : popupActive ? popupHeight : 0;
+  const footerHeight = filterActive ? 3 : 0;
   const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
 
   const selectedIndex = vm.rows.findIndex((r) => r.isSelected);

@@ -13,31 +13,19 @@ const globalKeymaps: KeymapEntry[] = [
 ];
 
 const localKeymaps: Record<InputMode, KeymapEntry[]> = {
-  normal: [
+  list: [
     { keys: 'j / ↓', description: 'Move down' },
     { keys: 'k / ↑', description: 'Move up' },
     { keys: 'r', description: 'Refresh comments' },
     { keys: 'R', description: 'Toggle resolved visibility' },
     { keys: 'e', description: 'Open in editor' },
-    { keys: 'Enter', description: 'Open actions popup' },
     { keys: '/', description: 'Filter comments' },
     { keys: 'Esc', description: 'Clear filter' },
   ],
-  filter: [
+  'list-filter': [
     { keys: 'type', description: 'Enter filter text' },
     { keys: 'Enter', description: 'Apply filter' },
     { keys: 'Esc', description: 'Cancel filter' },
-  ],
-  popup: [
-    { keys: 'j / ↓', description: 'Move down actions' },
-    { keys: 'k / ↑', description: 'Move up actions' },
-    { keys: 'Enter', description: 'Select action' },
-    { keys: 'q / Esc', description: 'Close popup' },
-    { keys: 'r', description: 'Resolve / Activate' },
-    { keys: 'u', description: 'Unresolve' },
-    { keys: 'e', description: 'Open in editor' },
-    { keys: 'y', description: 'Copy ID' },
-    { keys: 'd', description: 'Delete' },
   ],
   help: [],
 };
@@ -54,9 +42,8 @@ function fuzzyMatch(query: string, text: string): boolean {
 }
 
 const modeLabels: Record<InputMode, string> = {
-  normal: 'Normal',
-  filter: 'Filter',
-  popup: 'Popup',
+  list: 'List',
+  'list-filter': 'Filter',
   help: 'Help',
 };
 

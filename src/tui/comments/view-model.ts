@@ -17,19 +17,6 @@ export type CommentRowViewModel = {
   isResolved: boolean;
 };
 
-// ── popup ──────────────────────────────────────────────────────
-
-export type PopupActionViewModel = {
-  key: string;
-  label: string;
-};
-
-export type CommentPopupViewModel = {
-  comment: CommentRowViewModel;
-  actions: PopupActionViewModel[];
-  selectedActionIndex: number;
-};
-
 // ── whole list ─────────────────────────────────────────────────
 
 export type CommentListViewModel = {
@@ -38,5 +25,4 @@ export type CommentListViewModel = {
   showResolved: boolean;
   isFilterMode: boolean;
   rows: CommentRowViewModel[];
-  popup: CommentPopupViewModel | null;
 };

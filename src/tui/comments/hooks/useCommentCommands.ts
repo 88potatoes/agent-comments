@@ -23,15 +23,7 @@ export function useCommentCommands(totalCount: number) {
   }, [hoveredCommentIndex, totalCount, setHoveredCommentIndex]);
 
   const openFilter = useCallback(() => {
-    setInputMode('filter');
-  }, [setInputMode]);
-
-  const openActions = useCallback(() => {
-    // popup disabled
-  }, []);
-
-  const closePopup = useCallback(() => {
-    setInputMode('normal');
+    setInputMode('list-filter');
   }, [setInputMode]);
 
   const clearFilter = useCallback(() => {
@@ -41,18 +33,6 @@ export function useCommentCommands(totalCount: number) {
   const toggleResolved = useCallback(() => {
     toggleShowResolved();
   }, [toggleShowResolved]);
-
-  const popupMoveUp = useCallback(() => {
-    // popup disabled
-  }, []);
-
-  const popupMoveDown = useCallback(() => {
-    // popup disabled
-  }, []);
-
-  const popupSelect = useCallback(() => {
-    // popup disabled
-  }, []);
 
   const filterType = useCallback(
     (char: string) => {
@@ -66,28 +46,23 @@ export function useCommentCommands(totalCount: number) {
   }, [filter, setFilter]);
 
   const filterApply = useCallback(() => {
-    applyPatch({ inputMode: 'normal', hoveredCommentIndex: 0 });
+    applyPatch({ inputMode: 'list', hoveredCommentIndex: 0 });
   }, [applyPatch]);
 
   const filterCancel = useCallback(() => {
-    applyPatch({ inputMode: 'normal', filter: '' });
+    applyPatch({ inputMode: 'list', filter: '' });
   }, [applyPatch]);
 
   const closeHelp = useCallback(() => {
-    if (inputMode === 'help') setInputMode('normal');
+    if (inputMode === 'help') setInputMode('list');
   }, [inputMode, setInputMode]);
 
   return {
     moveUp,
     moveDown,
     openFilter,
-    openActions,
-    closePopup,
     clearFilter,
     toggleResolved,
-    popupMoveUp,
-    popupMoveDown,
-    popupSelect,
     filterType,
     filterBackspace,
     filterApply,
