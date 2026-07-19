@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { CommentStatus } from "./comments/comments.domain.ts";
 import { CommentRepo } from "./comments/repo.ts";
@@ -8,7 +9,7 @@ import { CommentService } from "./comments/service.ts";
 import { getDbPath } from "./lib/db.ts";
 import { formatDefault, formatJson, formatGraph, wordWrap } from "./lib/format.ts";
 import { LineRangeType, parseLineInput } from "./lib/helpers.ts";
-import App from "./gui/app.tsx";
+import App from "./tui/app.tsx";
 
 export { formatDefault, formatJson, formatGraph, wordWrap };
 
@@ -194,7 +195,12 @@ program
       if (!process.stdout.isTTY || !process.stdin.isTTY) {
         throw new Error("tui requires an interactive terminal");
       }
-      const { waitUntilExit } = render(React.createElement(App, { service }), { alternateScreen: true });
+      const { waitUntilExit } = render(
+        React.createElement(QueryClientProvider, { client: new QueryClient() },
+          React.createElement(App, { service })
+        ),
+        { alternateScreen: true }
+      );
       await waitUntilExit();
     }),
   );

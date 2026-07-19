@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
-import type { CommentEntity } from '../comments/comments.domain.ts';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CommentStatus } from '../comments/comments.domain.ts';
 import type { CommentService } from '../comments/service.ts';
 
@@ -35,27 +35,38 @@ type AppProps = {
 };
 
 const App: React.FC<AppProps> = ({ service }) => {
-  const [comments, setComments] = useState<CommentEntity[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [mode, setMode] = useState<'normal' | 'filter'>('normal');
   const [filterInput, setFilterInput] = useState('');
   const { stdout } = useStdout();
+  const queryClient = useQueryClient();
 
-  const loadComments = useCallback(async () => {
-    try {
-      const cs = await service.getAllComments();
-      setComments(cs);
-    } catch {
-      // quiet on load errors
-    }
-  }, [service]);
+  // ── data ─────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    void loadComments();
-  }, [loadComments]);
+  const { data: comments = [] } = useQuery({
+    queryKey: ['comments'],
+    queryFn: () => service.getAllComments(),
+  });
 
-  // filtering
+  const resolveMutation = useMutation({
+    mutationFn: (id: string) => service.resolveComment(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
+  });
+
+  const unresolveMutation = useMutation({
+    mutationFn: (id: string) => service.unresolveComment(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
+  });
+
+  const setStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: CommentStatus }) =>
+      service.setStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
+  });
+
+  // ── filtering ────────────────────────────────────────────────────
+
   const filtered = useMemo(() => {
     if (!filter) return comments;
     const f = filter.toLowerCase();
@@ -64,7 +75,8 @@ const App: React.FC<AppProps> = ({ service }) => {
     );
   }, [comments, filter]);
 
-  // layout
+  // ── layout ───────────────────────────────────────────────────────
+
   const termRows = stdout?.rows ?? 24;
   const termCols = stdout?.columns ?? 80;
   const headerHeight = 2;
@@ -81,9 +93,10 @@ const App: React.FC<AppProps> = ({ service }) => {
   const fileColMax = Math.min(30, Math.floor(termCols * 0.32));
   const msgColMax = Math.max(10, termCols - prefixWidth - fileColMax - 2);
 
-  // keyboard
+  // ── keyboard ─────────────────────────────────────────────────────
+
   useInput((input, key) => {
-    // ── filter mode ──
+    // filter mode
     if (mode === 'filter') {
       if (key.escape) {
         setMode('normal');
@@ -100,7 +113,7 @@ const App: React.FC<AppProps> = ({ service }) => {
       return;
     }
 
-    // ── normal mode ──
+    // normal mode
     if (key.upArrow || input === 'k') {
       setSelectedIndex((i) => Math.max(0, i - 1));
     } else if (key.downArrow || input === 'j') {
@@ -108,12 +121,13 @@ const App: React.FC<AppProps> = ({ service }) => {
     } else if (input === 'r') {
       const c = filtered[clampedIndex];
       if (!c) return;
+      const shortId = c.id.slice(0, 8);
       if (c.status === CommentStatus.Draft) {
-        service.setStatus(c.id.slice(0, 8), CommentStatus.Active).then(() => loadComments()).catch(() => {});
+        setStatusMutation.mutate({ id: shortId, status: CommentStatus.Active });
       } else if (c.status === CommentStatus.Active) {
-        service.resolveComment(c.id.slice(0, 8)).then(() => loadComments()).catch(() => {});
+        resolveMutation.mutate(shortId);
       } else if (c.status === CommentStatus.Resolved) {
-        service.unresolveComment(c.id.slice(0, 8)).then(() => loadComments()).catch(() => {});
+        unresolveMutation.mutate(shortId);
       }
     } else if (input === '/') {
       setMode('filter');
@@ -128,7 +142,7 @@ const App: React.FC<AppProps> = ({ service }) => {
     }
   });
 
-  // ── render ─────────────────────────────────────────────────────────
+  // ── render ───────────────────────────────────────────────────────
 
   const showScrollTop = startIdx > 0;
   const showScrollBottom = endIdx < filtered.length;
@@ -190,7 +204,7 @@ const App: React.FC<AppProps> = ({ service }) => {
         </Box>
       )}
 
-      {/* empty state — render as a row between header and footer */}
+      {/* empty state */}
       {filtered.length === 0 && (
         <Box>
           <Text dimColor>

@@ -23,7 +23,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --external:@tanstack/react-query --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint",
@@ -34,6 +34,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
     "better-sqlite3": "^11.0.0",
     "commander": "^15.0.0",
     "ink": "^7.1.1",
