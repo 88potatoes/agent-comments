@@ -24,9 +24,9 @@ UI Components (pure Ink, no store/queryClient access)
    - `useCommentListViewModel` (for data)
    - Props passed from parent
 
-2. **`useCommentCommands`** is the single entry point for ALL actions. Every mutation, navigation, mode switch, filter operation, help interaction, refresh, edit, and quit goes through it. It exposes:
-   - State reads: `inputMode`, `filter`, `hoveredCommentIndex`, `hoveredHelpIndex`, `showResolved`, `hasFilter`, `hasComments`
-   - Commands: `moveUp/Down`, `openFilter`, `clearFilter`, `toggleResolved`, `filterType/Backspace/Apply/Cancel`, `openHelp`, `closeHelp`, `helpMoveUp/Down`, `helpActivate`, `refresh`, `editComment`, `quit`
+2. **`useCommentCommands`** is the single entry point for ALL actions. It takes **zero data params** — all state comes from the zustand store. Navigation does NOT clamp (view model handles it). `editComment` is wired by the parent (app.tsx) since it needs view model data (file/line). Exposes:
+   - State reads: `inputMode`, `filter`, `hoveredCommentIndex`, `hoveredHelpIndex`, `showResolved`, `hasFilter`
+   - Commands: `moveUp/Down`, `openFilter`, `clearFilter`, `toggleResolved`, `filterType/Backspace/Apply/Cancel`, `openHelp`, `closeHelp`, `helpMoveUp/Down`, `helpActivate(key, editComment)`, `refresh`, `quit`
 
 3. **`useCommentListViewModel`** is the single entry point for ALL display data. It returns `{ vm: CommentListViewModel }`. The view model is pure — no side effects, no mutation. **Never expose `CommentEntity` to the UI layer.** Domain entities stay in the service/data layer.
 
@@ -39,7 +39,7 @@ UI Components (pure Ink, no store/queryClient access)
 ## Why?
 
 - UI components are testable without store setup (pass mock commands/viewmodel).
-- Command logic is testable via store integration tests (no React, no Ink).
+- Command logic is testable via `renderHook` from `@testing-library/react` (requires `// @vitest-environment jsdom`).
 - Handler functions are testable as pure functions (mock deps, assert calls).
 - `buildLocalKeymaps` in HelpScreen is a pure function tested directly.
 - Clear separation: UI renders data and calls actions. All logic lives in commands/logic.
@@ -59,5 +59,5 @@ UI Components (pure Ink, no store/queryClient access)
 
 - **Handler tests** (`store.test.ts` § handleListInput/handleListFilterInput/handleHelpInput): Pure functions, mock deps with `vi.fn()`, assert which dep was called.
 - **Logic tests** (`store.test.ts` § clampIndex, buildLocalKeymaps): Pure functions, input→output.
-- **Store integration tests** (`store.test.ts` § useCommentCommands): Set store state via `useTuiStore.setState()`, call equivalent store actions, assert resulting state.
+- **Command + view model tests** (`store.test.ts` § useCommentCommands): Uses `renderHook` + `QueryClientProvider` wrapper. Calls command functions, computes `toCommentListViewModel` from mock comments + store state, asserts view model is correct.
 - **Rendering test** (`app.test.tsx`): Smoke test via `renderToString`.

@@ -1,8 +1,18 @@
+/// <reference types="vitest" />
+// @vitest-environment jsdom
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTuiStore, type TuiState, type TuiKey, clampIndex } from './store.ts';
 import { handleListInput, handleListFilterInput, handleHelpInput } from './useHandleInput.ts';
 import type { ListDeps, FilterDeps, HelpDeps } from './useHandleInput.ts';
 import { buildLocalKeymaps } from './HelpScreen.tsx';
+import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
+import { CommentStatus, CommentSource } from '../comments/comments.domain.ts';
+import type { CommentEntity } from '../comments/comments.domain.ts';
+import { toCommentListViewModel } from './comments/logic.ts';
 
 // ── helpers ────────────────────────────────────────────────────
 
@@ -70,6 +80,48 @@ function makeHelpDeps(overrides: Partial<HelpDeps> = {}): HelpDeps {
     closeHelp: vi.fn(),
     ...overrides,
   };
+}
+
+// ── mock comments for view model tests ─────────────────────────
+
+function makeComment(overrides: Partial<CommentEntity> = {}): CommentEntity {
+  return {
+    id: '11111111-1111-1111-1111-111111111111',
+    file: 'src/foo.ts',
+    startLine: 1,
+    endLine: 1,
+    message: 'test comment',
+    status: CommentStatus.Active,
+    source: CommentSource.Local,
+    externalId: null,
+    author: null,
+    url: null,
+    createdAt: '2025-01-01',
+    updatedAt: '2025-01-01',
+    ...overrides,
+  };
+}
+
+const mockComments: CommentEntity[] = [
+  makeComment({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', file: 'src/a.ts', startLine: 10, message: 'fix this' }),
+  makeComment({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', file: 'src/b.ts', startLine: 20, message: 'review needed' }),
+  makeComment({ id: 'cccccccc-cccc-cccc-cccc-cccccccccccc', file: 'src/c.ts', startLine: 30, message: 'TODO', status: CommentStatus.Resolved }),
+  makeComment({ id: 'dddddddd-dddd-dddd-dddd-dddddddddddd', file: 'src/d.ts', startLine: 40, message: 'bug here' }),
+  makeComment({ id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', file: 'src/e.ts', startLine: 50, message: 'cleanup', status: CommentStatus.Resolved }),
+];
+
+function getVm(): ReturnType<typeof toCommentListViewModel> {
+  return toCommentListViewModel(mockComments, useTuiStore.getState());
+}
+
+// ── react-query wrapper ────────────────────────────────────────
+
+function makeWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -373,259 +425,299 @@ describe('buildLocalKeymaps', () => {
 });
 
 // ════════════════════════════════════════════════════════════════
-// useCommentCommands — integration via store
+// useCommentCommands (renderHook tests)
 // ════════════════════════════════════════════════════════════════
+// Call command functions, then compute CommentListViewModel and assert.
 
-describe('useCommentCommands (store integration)', () => {
+describe('useCommentCommands', () => {
   beforeEach(() => {
     useTuiStore.setState(fresh());
   });
 
-  // We test the command logic by directly calling store actions that
-  // mirror what useCommentCommands does (since we can't render the hook
-  // without @testing-library/react).
+  function renderCommands() {
+    return renderHook(() => useCommentCommands(), { wrapper: makeWrapper() });
+  }
 
-  describe('openHelp', () => {
-    it('sets inputMode to help and resets hoveredHelpIndex', () => {
-      useTuiStore.setState({ hoveredHelpIndex: 5 });
-      const s = useTuiStore.getState();
-      s.applyPatch({ inputMode: 'help', hoveredHelpIndex: 0 });
-      const next = useTuiStore.getState();
-      expect(next.inputMode).toBe('help');
-      expect(next.hoveredHelpIndex).toBe(0);
+  describe('navigation → view model', () => {
+    it('moveDown advances selection in view model', () => {
+      useTuiStore.setState({ showResolved: true });
+      const { result } = renderCommands();
+
+      act(() => result.current.moveDown());
+      const vm = getVm();
+      expect(vm.rows[0].isSelected).toBe(false);
+      expect(vm.rows[1].isSelected).toBe(true);
+      expect(vm.rows[1].shortId).toBe('bbbbbbbb');
+    });
+
+    it('moveUp moves selection back', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 2 });
+      const { result } = renderCommands();
+
+      act(() => result.current.moveUp());
+      const vm = getVm();
+      expect(vm.rows[1].isSelected).toBe(true);
+      expect(vm.rows[1].shortId).toBe('bbbbbbbb');
+    });
+
+    it('view model clamps past-end index', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 10 });
+      const vm = getVm();
+      // logic.ts: Math.min(10, max(0, 4)) = 4
+      expect(vm.rows[4].isSelected).toBe(true);
+    });
+
+    it('view model clamps negative index to 0', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: -5 });
+      const vm = getVm();
+      expect(vm.rows[0].isSelected).toBe(true);
+    });
+
+    it('view model reclamps when filter reduces result set', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 4 });
+      const { result } = renderCommands();
+
+      // Type filter -> only 1 match
+      act(() => result.current.filterType('f'));
+      act(() => result.current.filterType('i'));
+      act(() => result.current.filterType('x'));
+      const vm = getVm();
+      expect(vm.totalCount).toBe(1);
+      // hover was 4 but only 1 row -> clamped to 0
+      expect(vm.rows[0].isSelected).toBe(true);
     });
   });
 
-  describe('closeHelp', () => {
-    it('sets inputMode to list and resets hoveredHelpIndex', () => {
-      useTuiStore.setState({ inputMode: 'help', hoveredHelpIndex: 3 });
-      const s = useTuiStore.getState();
-      s.applyPatch({ inputMode: 'list', hoveredHelpIndex: 0 });
-      const next = useTuiStore.getState();
-      expect(next.inputMode).toBe('list');
-      expect(next.hoveredHelpIndex).toBe(0);
-    });
-  });
+  describe('filter → view model', () => {
+    it('filterType + filterApply narrows results', () => {
+      useTuiStore.setState({ showResolved: true, inputMode: 'list-filter' });
+      const { result } = renderCommands();
 
-  describe('helpMoveUp', () => {
-    it('moves hoveredHelpIndex up and clamps at 0', () => {
-      useTuiStore.setState({ hoveredHelpIndex: 2 });
-      const s = useTuiStore.getState();
-      s.setHoveredHelpIndex(clampIndex(s.hoveredHelpIndex - 1, 5));
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(1);
+      act(() => result.current.filterType('b'));
+      act(() => result.current.filterType('u'));
+      act(() => result.current.filterType('g'));
+      act(() => result.current.filterApply());
 
-      useTuiStore.setState({ hoveredHelpIndex: 0 });
-      s.setHoveredHelpIndex(clampIndex(useTuiStore.getState().hoveredHelpIndex - 1, 5));
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(0);
-    });
-  });
-
-  describe('helpMoveDown', () => {
-    it('moves hoveredHelpIndex down and clamps at last', () => {
-      useTuiStore.setState({ hoveredHelpIndex: 0 });
-      const s = useTuiStore.getState();
-      s.setHoveredHelpIndex(clampIndex(s.hoveredHelpIndex + 1, 5));
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(1);
-
-      useTuiStore.setState({ hoveredHelpIndex: 4 });
-      s.setHoveredHelpIndex(clampIndex(useTuiStore.getState().hoveredHelpIndex + 1, 5));
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(4);
+      const vm = getVm();
+      expect(vm.isFilterMode).toBe(false);
+      expect(vm.totalCount).toBe(1);
+      expect(vm.rows[0].message).toBe('bug here');
     });
 
-    it('clamps correctly with 0 total entries', () => {
-      useTuiStore.setState({ hoveredHelpIndex: 0 });
-      const s = useTuiStore.getState();
-      s.setHoveredHelpIndex(clampIndex(s.hoveredHelpIndex + 1, 0));
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(0);
-    });
-  });
+    it('filterCancel clears filter and restores all', () => {
+      useTuiStore.setState({ showResolved: true, inputMode: 'list-filter', filter: 'bug' });
+      const { result } = renderCommands();
 
-  describe('helpActivate', () => {
-    it('toggles showResolved on R action', () => {
-      useTuiStore.getState().toggleShowResolved();
-      expect(useTuiStore.getState().showResolved).toBe(false);
+      act(() => result.current.filterCancel());
+      const vm = getVm();
+      expect(vm.isFilterMode).toBe(false);
+      expect(vm.filter).toBe('');
+      expect(vm.totalCount).toBe(5);
     });
 
-    it('sets inputMode to list-filter on / action', () => {
-      useTuiStore.getState().setInputMode('list-filter');
-      expect(useTuiStore.getState().inputMode).toBe('list-filter');
-    });
+    it('clearFilter resets filter and selection', () => {
+      useTuiStore.setState({ showResolved: true, filter: 'bug', hoveredCommentIndex: 3 });
+      const { result } = renderCommands();
 
-    it('clears filter on Esc action', () => {
-      useTuiStore.setState({ filter: 'src', hoveredCommentIndex: 3 });
-      useTuiStore.getState().applyPatch({ filter: '', hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      expect(s.filter).toBe('');
-      expect(s.hoveredCommentIndex).toBe(0);
-    });
-
-    it('applies filter on Enter action', () => {
-      useTuiStore.setState({ inputMode: 'list-filter', hoveredCommentIndex: 3 });
-      useTuiStore.getState().applyPatch({ inputMode: 'list', hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      expect(s.inputMode).toBe('list');
-      expect(s.hoveredCommentIndex).toBe(0);
-    });
-  });
-
-  describe('moveUp / moveDown (comment navigation)', () => {
-    it('moveDown increases hoveredCommentIndex', () => {
-      const s = useTuiStore.getState();
-      s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex + 1, 5));
-      expect(useTuiStore.getState().hoveredCommentIndex).toBe(1);
-    });
-
-    it('moveUp decreases hoveredCommentIndex', () => {
-      useTuiStore.setState({ hoveredCommentIndex: 3 });
-      const s = useTuiStore.getState();
-      s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex - 1, 5));
-      expect(useTuiStore.getState().hoveredCommentIndex).toBe(2);
-    });
-
-    it('moveDown clamps at last', () => {
-      useTuiStore.setState({ hoveredCommentIndex: 4 });
-      const s = useTuiStore.getState();
-      s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex + 1, 5));
-      expect(useTuiStore.getState().hoveredCommentIndex).toBe(4);
-    });
-
-    it('moveUp clamps at 0', () => {
-      useTuiStore.setState({ hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex - 1, 5));
-      expect(useTuiStore.getState().hoveredCommentIndex).toBe(0);
-    });
-
-    it('clamps correctly with zero totalCount', () => {
-      useTuiStore.setState({ hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      s.setHoveredCommentIndex(clampIndex(s.hoveredCommentIndex + 1, 0));
-      expect(useTuiStore.getState().hoveredCommentIndex).toBe(0);
-    });
-  });
-
-  describe('filter operations', () => {
-    it('filterType appends characters', () => {
-      useTuiStore.getState().setFilter('s');
-      useTuiStore.getState().setFilter('sr');
-      useTuiStore.getState().setFilter('src');
-      expect(useTuiStore.getState().filter).toBe('src');
+      act(() => result.current.clearFilter());
+      const vm = getVm();
+      expect(vm.filter).toBe('');
+      expect(vm.totalCount).toBe(5);
+      expect(vm.rows[0].isSelected).toBe(true);
     });
 
     it('filterBackspace removes last character', () => {
-      useTuiStore.setState({ filter: 'src' });
-      const s = useTuiStore.getState();
-      s.setFilter(s.filter.slice(0, -1));
-      expect(useTuiStore.getState().filter).toBe('sr');
-    });
+      useTuiStore.setState({ showResolved: true, inputMode: 'list-filter', filter: 'bug' });
+      const { result } = renderCommands();
 
-    it('clearFilter resets filter and hover index', () => {
-      useTuiStore.setState({ filter: 'src', hoveredCommentIndex: 5 });
-      useTuiStore.getState().applyPatch({ filter: '', hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      expect(s.filter).toBe('');
-      expect(s.hoveredCommentIndex).toBe(0);
-    });
-
-    it('filterApply exits filter mode and resets hover', () => {
-      useTuiStore.setState({ inputMode: 'list-filter', hoveredCommentIndex: 3 });
-      useTuiStore.getState().applyPatch({ inputMode: 'list', hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      expect(s.inputMode).toBe('list');
-      expect(s.hoveredCommentIndex).toBe(0);
-    });
-
-    it('filterCancel exits filter mode and clears filter', () => {
-      useTuiStore.setState({ inputMode: 'list-filter', filter: 'src' });
-      useTuiStore.getState().applyPatch({ inputMode: 'list', filter: '' });
-      const s = useTuiStore.getState();
-      expect(s.inputMode).toBe('list');
-      expect(s.filter).toBe('');
-    });
-
-    it('openFilter sets inputMode to list-filter', () => {
-      useTuiStore.getState().setInputMode('list-filter');
-      expect(useTuiStore.getState().inputMode).toBe('list-filter');
+      act(() => result.current.filterBackspace());
+      act(() => result.current.filterApply());
+      const vm = getVm();
+      expect(vm.filter).toBe('bu');
     });
   });
 
-  describe('toggleResolved', () => {
-    it('toggles showResolved and resets hoveredCommentIndex', () => {
-      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 5 });
-      useTuiStore.getState().toggleShowResolved();
-      const s = useTuiStore.getState();
-      expect(s.showResolved).toBe(false);
-      expect(s.hoveredCommentIndex).toBe(0);
+  describe('toggleResolved → view model', () => {
+    it('hides resolved comments and resets hover', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 3 });
+      const { result } = renderCommands();
+
+      act(() => result.current.toggleResolved());
+      const vm = getVm();
+      expect(vm.showResolved).toBe(false);
+      expect(vm.totalCount).toBe(3); // 2 resolved hidden
+      expect(vm.rows[0].isSelected).toBe(true);
+      expect(vm.rows[0].shortId).toBe('aaaaaaaa');
     });
 
-    it('toggles back', () => {
-      useTuiStore.setState({ showResolved: false, hoveredCommentIndex: 0 });
-      useTuiStore.getState().toggleShowResolved();
-      expect(useTuiStore.getState().showResolved).toBe(true);
-    });
-  });
+    it('shows resolved again on second toggle', () => {
+      useTuiStore.setState({ showResolved: false });
+      const { result } = renderCommands();
 
-  describe('hasFilter / hasComments', () => {
-    it('hasFilter is true when filter is non-empty', () => {
-      useTuiStore.setState({ filter: 'src' });
-      expect(useTuiStore.getState().filter.length > 0).toBe(true);
-    });
-
-    it('hasFilter is false when filter is empty', () => {
-      useTuiStore.setState({ filter: '' });
-      expect(useTuiStore.getState().filter.length > 0).toBe(false);
+      act(() => result.current.toggleResolved());
+      const vm = getVm();
+      expect(vm.showResolved).toBe(true);
+      expect(vm.totalCount).toBe(5);
     });
   });
 
-  describe('combined operations', () => {
-    it('entering and exiting filter mode preserves other state', () => {
-      useTuiStore.setState({ filter: '', hoveredCommentIndex: 2 });
-      // Enter filter
-      useTuiStore.getState().setInputMode('list-filter');
-      expect(useTuiStore.getState().inputMode).toBe('list-filter');
-      // Type
-      useTuiStore.getState().setFilter('a');
-      // Apply
-      useTuiStore.getState().applyPatch({ inputMode: 'list', hoveredCommentIndex: 0 });
-      const s = useTuiStore.getState();
-      expect(s.inputMode).toBe('list');
-      expect(s.filter).toBe('a');
-      expect(s.hoveredCommentIndex).toBe(0);
+  describe('filter mode flag', () => {
+    it('isFilterMode is false in list mode', () => {
+      expect(getVm().isFilterMode).toBe(false);
     });
 
-    it('opening help, navigating, and closing resets help index', () => {
-      // Open help
-      useTuiStore.getState().applyPatch({ inputMode: 'help', hoveredHelpIndex: 0 });
-      expect(useTuiStore.getState().inputMode).toBe('help');
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(0);
-
-      // Navigate down
-      useTuiStore.getState().setHoveredHelpIndex(2);
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(2);
-
-      // Close help
-      useTuiStore.getState().applyPatch({ inputMode: 'list', hoveredHelpIndex: 0 });
-      expect(useTuiStore.getState().inputMode).toBe('list');
-      expect(useTuiStore.getState().hoveredHelpIndex).toBe(0);
+    it('isFilterMode is true after openFilter', () => {
+      const { result } = renderCommands();
+      act(() => result.current.openFilter());
+      expect(getVm().isFilterMode).toBe(true);
     });
+  });
 
-    it('opening help from filter mode with active filter works', () => {
-      useTuiStore.setState({
-        inputMode: 'list-filter',
-        filter: 'src',
-        hoveredCommentIndex: 3,
-        hoveredHelpIndex: 99,
-      });
+  describe('help operations', () => {
+    it('openHelp sets inputMode to help and resets help index', () => {
+      useTuiStore.setState({ hoveredHelpIndex: 5 });
+      const { result } = renderCommands();
 
-      // Open help (this is what openHelp does — applyPatch resets multiple fields)
-      useTuiStore.getState().applyPatch({ inputMode: 'help', hoveredHelpIndex: 0 });
-
+      act(() => result.current.openHelp());
       const s = useTuiStore.getState();
       expect(s.inputMode).toBe('help');
       expect(s.hoveredHelpIndex).toBe(0);
-      // Other state preserved
-      expect(s.filter).toBe('src');
-      expect(s.hoveredCommentIndex).toBe(3);
+    });
+
+    it('closeHelp returns to list and resets help index', () => {
+      useTuiStore.setState({ inputMode: 'help', hoveredHelpIndex: 3 });
+      const { result } = renderCommands();
+
+      act(() => result.current.closeHelp());
+      const s = useTuiStore.getState();
+      expect(s.inputMode).toBe('list');
+      expect(s.hoveredHelpIndex).toBe(0);
+    });
+
+    it('helpMoveUp moves up and clamps at 0', () => {
+      useTuiStore.setState({ hoveredHelpIndex: 2 });
+      const { result } = renderCommands();
+
+      act(() => result.current.helpMoveUp(5));
+      expect(useTuiStore.getState().hoveredHelpIndex).toBe(1);
+
+      act(() => result.current.helpMoveUp(5));
+      expect(useTuiStore.getState().hoveredHelpIndex).toBe(0);
+    });
+
+    it('helpMoveDown moves down and clamps at last', () => {
+      useTuiStore.setState({ hoveredHelpIndex: 3 });
+      const { result } = renderCommands();
+
+      act(() => result.current.helpMoveDown(5));
+      expect(useTuiStore.getState().hoveredHelpIndex).toBe(4);
+
+      act(() => result.current.helpMoveDown(5));
+      expect(useTuiStore.getState().hoveredHelpIndex).toBe(4);
+    });
+
+    it('helpActivate R toggles showResolved', () => {
+      const { result } = renderCommands();
+      const noopEdit = vi.fn();
+
+      act(() => result.current.helpActivate('R', noopEdit));
+      expect(useTuiStore.getState().showResolved).toBe(false);
+    });
+
+    it('helpActivate / enters filter mode', () => {
+      const { result } = renderCommands();
+      act(() => result.current.helpActivate('/', vi.fn()));
+      expect(useTuiStore.getState().inputMode).toBe('list-filter');
+    });
+
+    it('helpActivate Esc clears filter', () => {
+      useTuiStore.setState({ filter: 'src', hoveredCommentIndex: 3 });
+      const { result } = renderCommands();
+      act(() => result.current.helpActivate('Esc', vi.fn()));
+      const s = useTuiStore.getState();
+      expect(s.filter).toBe('');
+      expect(s.hoveredCommentIndex).toBe(0);
+    });
+
+    it('helpActivate e calls editComment callback', () => {
+      const { result } = renderCommands();
+      const editComment = vi.fn();
+      act(() => result.current.helpActivate('e', editComment));
+      expect(editComment).toHaveBeenCalledOnce();
+    });
+
+    it('helpActivate q exits process (skip — tested via handler)', () => {
+      // 'q' calls process.exit(), tested indirectly via handleListInput mock
+    });
+  });
+
+  describe('hasFilter derived state', () => {
+    it('true when filter is non-empty', () => {
+      useTuiStore.setState({ filter: 'src' });
+      const { result } = renderCommands();
+      expect(result.current.hasFilter).toBe(true);
+    });
+
+    it('false when filter is empty', () => {
+      useTuiStore.setState({ filter: '' });
+      const { result } = renderCommands();
+      expect(result.current.hasFilter).toBe(false);
+    });
+  });
+
+  describe('combined workflows', () => {
+    it('filter → navigate → toggle → view model correct', () => {
+      useTuiStore.setState({ showResolved: true, hoveredCommentIndex: 1 });
+      const { result } = renderCommands();
+      let vm = getVm();
+      expect(vm.totalCount).toBe(5);
+      expect(vm.rows[1].isSelected).toBe(true);
+
+      // Enter filter mode, type "fix"
+      act(() => result.current.openFilter());
+      act(() => result.current.filterType('f'));
+      act(() => result.current.filterType('i'));
+      act(() => result.current.filterType('x'));
+      act(() => result.current.filterApply());
+      vm = getVm();
+      expect(vm.totalCount).toBe(1);
+      expect(vm.rows[0].shortId).toBe('aaaaaaaa');
+
+      // Clear filter
+      act(() => result.current.clearFilter());
+      vm = getVm();
+      expect(vm.totalCount).toBe(5);
+      expect(vm.rows[0].isSelected).toBe(true);
+
+      // Toggle resolved off
+      act(() => result.current.toggleResolved());
+      vm = getVm();
+      expect(vm.showResolved).toBe(false);
+      expect(vm.totalCount).toBe(3);
+    });
+
+    it('resolved rows marked correctly in view model', () => {
+      useTuiStore.setState({ showResolved: true });
+      const vm = getVm();
+      expect(vm.rows[0].isResolved).toBe(false);
+      expect(vm.rows[2].isResolved).toBe(true);
+      expect(vm.rows[4].isResolved).toBe(true);
+    });
+
+    it('view model exposes file and line numbers', () => {
+      useTuiStore.setState({ showResolved: true });
+      const vm = getVm();
+      expect(vm.rows[0].file).toBe('src/a.ts');
+      expect(vm.rows[0].startLine).toBe(10);
+      expect(vm.rows[1].file).toBe('src/b.ts');
+      expect(vm.rows[1].startLine).toBe(20);
+    });
+
+    it('empty comments produces zero-row view model', () => {
+      useTuiStore.setState(fresh());
+      const vm = toCommentListViewModel([], useTuiStore.getState());
+      expect(vm.totalCount).toBe(0);
+      expect(vm.rows).toEqual([]);
     });
   });
 });

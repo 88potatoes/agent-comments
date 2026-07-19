@@ -70,8 +70,8 @@ export function toCommentListViewModel(
 ): CommentListViewModel {
   const filtered = filterComments(comments, state.filter, state.showResolved);
 
-  // rows — all filtered, with selection marker
-  const clampedIndex = Math.min(state.hoveredCommentIndex, Math.max(0, filtered.length - 1));
+  // rows — all filtered, with selection marker (clamped both sides)
+  const clampedIndex = Math.max(0, Math.min(state.hoveredCommentIndex, Math.max(0, filtered.length - 1)));
   const rows: CommentRowViewModel[] = filtered.map((c, i) =>
     toCommentRowViewModel(c, i === clampedIndex),
   );

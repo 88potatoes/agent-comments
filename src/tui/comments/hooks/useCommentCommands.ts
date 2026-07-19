@@ -8,21 +8,16 @@
 //              ↓
 //         Zustand store (internal, never accessed directly by UI)
 //
-// Layer boundary: this hook uses CommentRowViewModel for file/line access,
-// NOT CommentEntity. The domain entity never crosses into hooks or UI.
+// Layer boundary: this hook takes NO data params. All state comes from
+// the store. View model handles any index clamping. editComment is
+// wired by the parent since it needs view model data (file/line).
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTuiStore, clampIndex } from '../../store.ts';
+import { useTuiStore } from '../../store.ts';
 import { openInEditor } from '../../openInEditor.ts';
-import type { CommentRowViewModel } from '../view-model.ts';
 
-interface UseCommentCommandsOptions {
-  totalCommentCount: number;
-  rows: CommentRowViewModel[];
-}
-
-export function useCommentCommands({ totalCommentCount, rows }: UseCommentCommandsOptions) {
+export function useCommentCommands() {
   const queryClient = useQueryClient();
 
   // ── state reads ─────────────────────────────────────────────
@@ -35,22 +30,21 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
 
   // ── setters ─────────────────────────────────────────────────
 
-  const setHoveredCommentIndex = useTuiStore((s) => s.setHoveredCommentIndex);
+  const applyPatch = useTuiStore((s) => s.applyPatch);
+  const setFilter = useTuiStore((s) => s.setFilter);
   const setHoveredHelpIndex = useTuiStore((s) => s.setHoveredHelpIndex);
   const setInputMode = useTuiStore((s) => s.setInputMode);
-  const setFilter = useTuiStore((s) => s.setFilter);
   const toggleShowResolved = useTuiStore((s) => s.toggleShowResolved);
-  const applyPatch = useTuiStore((s) => s.applyPatch);
 
-  // ── list navigation ─────────────────────────────────────────
+  // ── list navigation (no clamping — view model handles it) ───
 
   const moveUp = useCallback(() => {
-    setHoveredCommentIndex(clampIndex(hoveredCommentIndex - 1, totalCommentCount));
-  }, [hoveredCommentIndex, totalCommentCount, setHoveredCommentIndex]);
+    useTuiStore.setState((s) => ({ hoveredCommentIndex: s.hoveredCommentIndex - 1 }));
+  }, []);
 
   const moveDown = useCallback(() => {
-    setHoveredCommentIndex(clampIndex(hoveredCommentIndex + 1, totalCommentCount));
-  }, [hoveredCommentIndex, totalCommentCount, setHoveredCommentIndex]);
+    useTuiStore.setState((s) => ({ hoveredCommentIndex: s.hoveredCommentIndex + 1 }));
+  }, []);
 
   // ── filter ──────────────────────────────────────────────────
 
@@ -93,20 +87,22 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
 
   const helpMoveUp = useCallback(
     (totalHelpEntries: number) => {
-      setHoveredHelpIndex(clampIndex(hoveredHelpIndex - 1, totalHelpEntries));
+      if (totalHelpEntries <= 0) return;
+      setHoveredHelpIndex(Math.max(0, hoveredHelpIndex - 1));
     },
     [hoveredHelpIndex, setHoveredHelpIndex],
   );
 
   const helpMoveDown = useCallback(
     (totalHelpEntries: number) => {
-      setHoveredHelpIndex(clampIndex(hoveredHelpIndex + 1, totalHelpEntries));
+      if (totalHelpEntries <= 0) return;
+      setHoveredHelpIndex(Math.min(hoveredHelpIndex + 1, totalHelpEntries - 1));
     },
     [hoveredHelpIndex, setHoveredHelpIndex],
   );
 
   const helpActivate = useCallback(
-    (actionKey: string) => {
+    (actionKey: string, editComment: () => void) => {
       switch (actionKey) {
         case 'r':
           void queryClient.invalidateQueries({ queryKey: ['comments'] });
@@ -114,11 +110,9 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
         case 'R':
           toggleShowResolved();
           break;
-        case 'e': {
-          const row = rows[hoveredCommentIndex];
-          if (row) openInEditor(row.file, row.startLine);
+        case 'e':
+          editComment();
           break;
-        }
         case '/':
           setInputMode('list-filter');
           break;
@@ -136,7 +130,7 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
           break;
       }
     },
-    [queryClient, rows, hoveredCommentIndex, toggleShowResolved, setInputMode, applyPatch],
+    [queryClient, toggleShowResolved, setInputMode, applyPatch],
   );
 
   // ── side effects ────────────────────────────────────────────
@@ -145,11 +139,6 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
     void queryClient.invalidateQueries({ queryKey: ['comments'] });
   }, [queryClient]);
 
-  const editComment = useCallback(() => {
-    const row = rows[hoveredCommentIndex];
-    if (row) openInEditor(row.file, row.startLine);
-  }, [rows, hoveredCommentIndex]);
-
   const quit = useCallback(() => {
     process.exit(0);
   }, []);
@@ -157,7 +146,6 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
   // ── derived ─────────────────────────────────────────────────
 
   const hasFilter = filter.length > 0;
-  const hasComments = totalCommentCount > 0;
 
   return {
     // state (read-only by UI)
@@ -167,7 +155,6 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
     filter,
     showResolved,
     hasFilter,
-    hasComments,
 
     // commands
     moveUp,
@@ -185,7 +172,6 @@ export function useCommentCommands({ totalCommentCount, rows }: UseCommentComman
     helpMoveDown,
     helpActivate,
     refresh,
-    editComment,
     quit,
   };
 }
