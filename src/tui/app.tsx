@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Text, useInput, useStdout, useFocus } from 'ink';
 import { useQueryClient } from '@tanstack/react-query';
-import { exec } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { CommentStatus } from '../comments/comments.domain.ts';
 import type { CommentEntity } from '../comments/comments.domain.ts';
 import { useQueryComments } from './hooks/comments/useQueryComments.ts';
@@ -20,20 +20,14 @@ function openInEditor(c: CommentEntity) {
   const editor = process.env.EDITOR || process.env.VISUAL;
 
   if (editor) {
-    // Try editor-aware line: vim/nvim/vi use +<line>
     const isVi = /\b(vim?|nvim|vi)\b/.test(editor);
-    const cmd = isVi
-      ? `${editor} +${c.startLine} '${absPath}'`
-      : `${editor} '${absPath}'`;
-    exec(cmd, (err) => {
-      if (err) console.error(`Failed to open editor: ${err.message}`);
-    });
+    const args = isVi ? [`+${c.startLine}`, absPath] : [absPath];
+    spawn(editor, args, { stdio: 'inherit', shell: true });
   } else {
     // Fallback: VS Code or macOS 'open'
-    exec(`code -g '${absPath}:${c.startLine}'`, (err) => {
-      if (err) {
-        exec(`open -t '${absPath}'`);
-      }
+    const codeProc = spawn('code', ['-g', `${absPath}:${c.startLine}`], { stdio: 'ignore', shell: true });
+    codeProc.on('error', () => {
+      spawn('open', [absPath], { stdio: 'ignore', shell: true });
     });
   }
 }
@@ -178,7 +172,7 @@ const AppInner: React.FC = () => {
   useInput((input, key) => {
     // popup mode
     if (mode === 'popup') {
-      if (key.escape) {
+      if (key.escape || input === 'q') {
         setMode('normal');
       } else if (key.upArrow || input === 'k') {
         setPopupIndex((i) => Math.max(0, i - 1));
@@ -244,6 +238,8 @@ const AppInner: React.FC = () => {
 
   // ── render ───────────────────────────────────────────────────────
 
+  const repoRoot = useMemo(() => getRepoRoot(), []);
+
   const showScrollTop = startIdx > 0;
   const showScrollBottom = endIdx < filtered.length;
 
@@ -252,6 +248,7 @@ const AppInner: React.FC = () => {
       {/* title */}
       <Box>
         <Text bold>agent-comments</Text>
+        <Text dimColor>  {repoRoot}</Text>
         <Text dimColor>  {filtered.length} comment{filtered.length !== 1 ? 's' : ''}</Text>
         {filter ? <Text color="yellow">  filter: "{filter}"</Text> : null}
         {!showResolved && <Text color="yellow">  hiding resolved</Text>}
@@ -351,6 +348,12 @@ const AppInner: React.FC = () => {
               </Text>
             </Box>
           ))}
+        </Box>
+      )}
+      {/* footer: help */}
+      {mode === 'help' && (
+        <Box marginTop={1} borderStyle="round" paddingX={1}>
+          <HelpScreen onClose={() => setMode('normal')} />
         </Box>
       )}
       </Box>
