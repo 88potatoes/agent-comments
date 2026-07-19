@@ -1,7 +1,8 @@
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "../lib/db.ts";
-
+import { comments } from "../db/schema.ts";
 import { CommentEntity, CommentStatus } from "./comments.domain.ts";
-import { CommentRecord, CreateCommentInput, UpdateCommentInput } from "./comments.table.ts";
+import type { CreateCommentInput, UpdateCommentInput } from "./comments.table.ts";
 
 export class CommentRepo {
   private constructor() {}
@@ -9,9 +10,7 @@ export class CommentRepo {
   public static readonly instance = new CommentRepo();
 
   async getCommentById(id: string): Promise<CommentEntity> {
-    const row = db.prepare("SELECT * FROM comments WHERE id = ?").get(id) as
-      | CommentRecord
-      | undefined;
+    const row = db.select().from(comments).where(eq(comments.id, id)).get();
     if (!row) {
       throw new Error(`Comment with id ${id} not found`);
     }
@@ -23,135 +22,141 @@ export class CommentRepo {
     const pattern = normalized + "%";
 
     const rows = db
-      .prepare("SELECT id FROM comments WHERE REPLACE(LOWER(id), '-', '') LIKE ?")
-      .all(pattern) as Pick<CommentRecord, "id">[];
+      .select({ id: comments.id })
+      .from(comments)
+      .where(sql`REPLACE(LOWER(${comments.id}), '-', '') LIKE ${pattern}`)
+      .all();
 
     if (rows.length === 0) {
       throw new Error(`No comment found matching id "${input}"`);
     }
     if (rows.length > 1) {
       const ids = rows.map((r) => r.id).join(", ");
-      throw new Error(`Ambiguous id "${input}" matches multiple comments: ${ids}`);
+      throw new Error(
+        `Ambiguous id "${input}" matches multiple comments: ${ids}`,
+      );
     }
 
     return rows[0].id;
   }
 
   async getAllComments(): Promise<CommentEntity[]> {
-    const rows = db.prepare("SELECT * FROM comments").all() as CommentRecord[];
+    const rows = db.select().from(comments).all();
     return rows.map((r) => this.toDomain(r));
   }
 
-  async queryComments(filter: { file?: string; status?: CommentStatus }): Promise<CommentEntity[]> {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
+  async queryComments(filter: {
+    file?: string;
+    status?: CommentStatus;
+  }): Promise<CommentEntity[]> {
+    const conditions = [];
     if (filter.file !== undefined) {
-      conditions.push("file = ?");
-      params.push(filter.file);
+      conditions.push(eq(comments.file, filter.file));
     }
     if (filter.status !== undefined) {
-      conditions.push("status = ?");
-      params.push(filter.status);
+      conditions.push(eq(comments.status, filter.status));
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const sql = `SELECT * FROM comments ${where}`;
-    const rows = db.prepare(sql).all(...params) as CommentRecord[];
+    const query = db.select().from(comments);
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+
+    const rows = query.all();
     return rows.map((r) => this.toDomain(r));
   }
 
-  async createComment(comment: CreateCommentInput): Promise<CommentEntity> {
+  async createComment(input: CreateCommentInput): Promise<CommentEntity> {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
 
-    db.prepare(
-      `INSERT INTO comments (id, file, startLine, endLine, message, status, source, externalId, author, url, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      comment.file,
-      comment.startLine,
-      comment.endLine,
-      comment.message,
-      comment.status,
-      comment.source ?? "local",
-      comment.externalId ?? null,
-      comment.author ?? null,
-      comment.url ?? null,
-      now,
-      now,
-    );
+    db.insert(comments)
+      .values({
+        id,
+        file: input.file,
+        startLine: input.startLine,
+        endLine: input.endLine,
+        message: input.message,
+        status: input.status,
+        source: input.source ?? "local",
+        externalId: input.externalId ?? null,
+        author: input.author ?? null,
+        url: input.url ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
     return this.toDomain({
       id,
-      file: comment.file,
-      startLine: comment.startLine,
-      endLine: comment.endLine,
-      message: comment.message,
-      status: comment.status,
-      source: comment.source ?? "local",
-      externalId: comment.externalId ?? null,
-      author: comment.author ?? null,
-      url: comment.url ?? null,
+      file: input.file,
+      startLine: input.startLine,
+      endLine: input.endLine,
+      message: input.message,
+      status: input.status,
+      source: input.source ?? "local",
+      externalId: input.externalId ?? null,
+      author: input.author ?? null,
+      url: input.url ?? null,
       createdAt: now,
       updatedAt: now,
     });
   }
 
-  async updateComment(updateCommentPayload: UpdateCommentInput): Promise<CommentEntity> {
-    const existing = await this.getCommentById(updateCommentPayload.id);
+  async updateComment(input: UpdateCommentInput): Promise<CommentEntity> {
+    const existing = await this.getCommentById(input.id);
     const now = new Date().toISOString();
 
-    const { id, ...updates } = updateCommentPayload;
+    const { id, ...updates } = input;
     const merged = { ...existing, ...updates, updatedAt: now };
 
-    db.prepare(
-      `UPDATE comments SET file = ?, startLine = ?, endLine = ?, message = ?, status = ?, source = ?, externalId = ?, author = ?, url = ?, updatedAt = ?
-       WHERE id = ?`,
-    ).run(
-      merged.file,
-      merged.startLine,
-      merged.endLine,
-      merged.message,
-      merged.status,
-      merged.source,
-      merged.externalId,
-      merged.author,
-      merged.url,
-      merged.updatedAt,
-      id,
-    );
+    db.update(comments)
+      .set({
+        file: merged.file,
+        startLine: merged.startLine,
+        endLine: merged.endLine,
+        message: merged.message,
+        status: merged.status,
+        source: merged.source,
+        externalId: merged.externalId,
+        author: merged.author,
+        url: merged.url,
+        updatedAt: merged.updatedAt,
+      })
+      .where(eq(comments.id, id))
+      .run();
 
     return this.toDomain(merged);
   }
 
   async deleteComment(id: string): Promise<void> {
-    await this.getCommentById(id); // throws if not found
-    db.prepare("DELETE FROM comments WHERE id = ?").run(id);
+    await this.getCommentById(id);
+    db.delete(comments).where(eq(comments.id, id)).run();
   }
 
   async findByExternalId(externalId: number): Promise<CommentEntity | null> {
     const row = db
-      .prepare("SELECT * FROM comments WHERE externalId = ?")
-      .get(externalId) as CommentRecord | undefined;
+      .select()
+      .from(comments)
+      .where(eq(comments.externalId, externalId))
+      .get();
     return row ? this.toDomain(row) : null;
   }
 
-  toDomain(comment: CommentRecord): CommentEntity {
+  toDomain(row: typeof comments.$inferSelect): CommentEntity {
     return {
-      id: comment.id,
-      file: comment.file,
-      startLine: comment.startLine,
-      endLine: comment.endLine,
-      message: comment.message,
-      status: comment.status as CommentEntity["status"],
-      source: comment.source as CommentEntity["source"],
-      externalId: comment.externalId,
-      author: comment.author,
-      url: comment.url,
-      createdAt: comment.createdAt,
-      updatedAt: comment.updatedAt,
+      id: row.id,
+      file: row.file,
+      startLine: row.startLine,
+      endLine: row.endLine,
+      message: row.message,
+      status: row.status as CommentStatus,
+      source: row.source as CommentEntity["source"],
+      externalId: row.externalId,
+      author: row.author,
+      url: row.url,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 }

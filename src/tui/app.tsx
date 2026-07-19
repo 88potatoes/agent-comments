@@ -46,7 +46,7 @@ type PopupAction = {
   action: () => void;
 };
 
-const App: React.FC = () => {
+const AppInner: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [showResolved, setShowResolved] = useState(true);
@@ -248,8 +248,7 @@ const App: React.FC = () => {
   const showScrollBottom = endIdx < filtered.length;
 
   return (
-    <GlobalProviders>
-      <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1}>
       {/* title */}
       <Box>
         <Text bold>agent-comments</Text>
@@ -355,8 +354,13 @@ const App: React.FC = () => {
         </Box>
       )}
       </Box>
-    </GlobalProviders>
   );
 };
+
+const App: React.FC = () => (
+  <GlobalProviders>
+    <AppInner />
+  </GlobalProviders>
+);
 
 export default App;
