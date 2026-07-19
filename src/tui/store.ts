@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 import { redux } from 'zustand/middleware';
+import { loadSettings, saveSettings } from './settings.ts';
 
 // ── state ──────────────────────────────────────────────────────
 
@@ -15,12 +16,14 @@ export type TuiState = {
   commentCount: number;
 };
 
+const settings = loadSettings();
+
 const initialState: TuiState = {
   mode: 'normal',
   selectedIndex: 0,
   filter: '',
   filterInput: '',
-  showResolved: true,
+  showResolved: settings.showResolved,
   popupIndex: 0,
   commentCount: 0,
 };
@@ -151,3 +154,10 @@ const tuiReducer = (state: TuiState, action: TuiAction): TuiState => {
 export const tuiStore = createStore(
   redux<TuiState, TuiAction>(tuiReducer, initialState),
 );
+
+// persist showResolved to disk whenever it changes
+tuiStore.subscribe((state, prev) => {
+  if (state.showResolved !== prev.showResolved) {
+    saveSettings({ showResolved: state.showResolved });
+  }
+});

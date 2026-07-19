@@ -27,15 +27,17 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
   const footerHeight = filterActive ? 3 : popupActive ? popupHeight : 0;
   const maxVisible = Math.max(1, termRows - headerHeight - footerHeight);
 
-  // center the selected index
   const selectedIndex = vm.rows.findIndex((r) => r.isSelected);
-  const clamped = selectedIndex === -1 ? 0 : selectedIndex;
-  const startIdx = Math.max(0, clamped - Math.floor(maxVisible / 2));
-  const endIdx = Math.min(vm.rows.length, startIdx + maxVisible);
-  const visibleRows = vm.rows.slice(startIdx, endIdx);
-
-  const showScrollTop = startIdx > 0;
-  const showScrollBottom = endIdx < vm.rows.length;
+  const { visibleRows, showScrollTop, showScrollBottom } = useMemo(() => {
+    const clamped = selectedIndex === -1 ? 0 : selectedIndex;
+    const startIdx = Math.max(0, clamped - Math.floor(maxVisible / 2));
+    const endIdx = Math.min(vm.rows.length, startIdx + maxVisible);
+    return {
+      visibleRows: vm.rows.slice(startIdx, endIdx),
+      showScrollTop: startIdx > 0,
+      showScrollBottom: endIdx < vm.rows.length,
+    };
+  }, [vm.rows, selectedIndex, maxVisible]);
 
   // ── empty state ────────────────────────────────────────────────
 
