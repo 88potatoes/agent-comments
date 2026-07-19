@@ -23,8 +23,6 @@ const AppInner: React.FC = () => {
     }
   }, [isFocused, commands.refresh]);
 
-  // ── render ───────────────────────────────────────────────────────
-
   return (
     <Box flexDirection="column">
       <CommentList vm={vm} />
