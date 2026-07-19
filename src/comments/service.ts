@@ -6,11 +6,13 @@ import {
 } from "./comments.domain.ts";
 import { CommentRepo } from "./repo.ts";
 
+export const commentService = new CommentService();
+
 export class CommentService {
   private commentsRepo: CommentRepo;
 
-  constructor({ commentsRepo }: { commentsRepo: CommentRepo }) {
-    this.commentsRepo = commentsRepo;
+  constructor({ commentsRepo }: { commentsRepo?: CommentRepo } = {}) {
+    this.commentsRepo = commentsRepo ?? CommentRepo.instance;
   }
 
   async getAllComments(filter?: {

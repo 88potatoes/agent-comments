@@ -1,69 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CommentStatus } from '../comments/comments.domain.ts';
-import type { CommentService } from '../comments/service.ts';
-
-// ── helpers ──────────────────────────────────────────────────────────
-
-function truncateLeft(str: string, maxLen: number): string {
-  if (str.length <= maxLen) return str;
-  return '\u2026' + str.slice(str.length - maxLen + 1);
-}
-
-function truncateRight(str: string, maxLen: number): string {
-  if (str.length <= maxLen) return str;
-  return str.slice(0, maxLen - 1) + '\u2026';
-}
-
-function statusIcon(status: CommentStatus): string {
-  if (status === CommentStatus.Active) return '\u25cf'; // ●
-  if (status === CommentStatus.Resolved) return '\u2713'; // ✓
-  return '\u25cb'; // ○ draft
-}
-
-function statusColor(status: CommentStatus): string {
-  if (status === CommentStatus.Active) return 'yellow';
-  if (status === CommentStatus.Resolved) return 'green';
-  return 'gray';
-}
+import { useQueryComments } from './hooks/comments/useQueryComments.ts';
+import { useMutateResolveComment } from './hooks/comments/useMutateResolveComment.ts';
+import { useMutateUnresolveComment } from './hooks/comments/useMutateUnresolveComment.ts';
+import { useMutateSetStatus } from './hooks/comments/useMutateSetStatus.ts';
+import { truncateLeft, truncateRight, statusIcon, statusColor } from './helpers.tsx';
 
 // ── App ──────────────────────────────────────────────────────────────
 
-type AppProps = {
-  service: CommentService;
-};
-
-const App: React.FC<AppProps> = ({ service }) => {
+const App: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [mode, setMode] = useState<'normal' | 'filter'>('normal');
   const [filterInput, setFilterInput] = useState('');
   const { stdout } = useStdout();
-  const queryClient = useQueryClient();
 
   // ── data ─────────────────────────────────────────────────────────
 
-  const { data: comments = [] } = useQuery({
-    queryKey: ['comments'],
-    queryFn: () => service.getAllComments(),
-  });
+  const { data: comments = [] } = useQueryComments();
 
-  const resolveMutation = useMutation({
-    mutationFn: (id: string) => service.resolveComment(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
-  });
+  const resolveMutation = useMutateResolveComment();
 
-  const unresolveMutation = useMutation({
-    mutationFn: (id: string) => service.unresolveComment(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
-  });
+  const unresolveMutation = useMutateUnresolveComment();
 
-  const setStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: CommentStatus }) =>
-      service.setStatus(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments'] }),
-  });
+  const setStatusMutation = useMutateSetStatus();
 
   // ── filtering ────────────────────────────────────────────────────
 

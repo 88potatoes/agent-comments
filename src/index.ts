@@ -197,7 +197,7 @@ program
       }
       const { waitUntilExit } = render(
         React.createElement(QueryClientProvider, { client: new QueryClient() },
-          React.createElement(App, { service })
+          React.createElement(App)
         ),
         { alternateScreen: true }
       );
