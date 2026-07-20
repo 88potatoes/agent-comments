@@ -6,6 +6,7 @@ import { HelpScreen } from './HelpScreen.tsx';
 import { useHandleInput } from './useHandleInput.ts';
 import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
 import { useCommentListViewModel } from './comments/hooks/useCommentListViewModel.ts';
+import { useMutateDeleteComment } from './hooks/comments/useMutateDeleteComment.ts';
 import { openInEditor } from './openInEditor.ts';
 
 // ── App ───────────────────────────────────────────────────────────
@@ -28,9 +29,18 @@ const AppInner: React.FC = () => {
     if (row) openInEditor(row.file, row.startLine);
   }, [vm.rows, commands.hoveredCommentIndex]);
 
+  // ── delete comment ───────────────────────────────────────────────
+
+  const deleteMutation = useMutateDeleteComment();
+
+  const deleteComment = useCallback(() => {
+    const row = vm.rows[commands.hoveredCommentIndex];
+    if (row) deleteMutation.mutate(row.id);
+  }, [vm.rows, commands.hoveredCommentIndex, deleteMutation]);
+
   // ── keyboard input ───────────────────────────────────────────────
 
-  useHandleInput({ ...commands, editComment });
+  useHandleInput({ ...commands, editComment, deleteComment });
 
   // ── invalidate on focus ──────────────────────────────────────────
 
@@ -56,7 +66,7 @@ const AppInner: React.FC = () => {
             onClose={commands.closeHelp}
             onMoveUp={commands.helpMoveUp}
             onMoveDown={commands.helpMoveDown}
-            onActivate={(key) => commands.helpActivate(key, editComment)}
+            onActivate={(key) => commands.helpActivate(key, editComment, deleteComment)}
           />
         </>
       )}

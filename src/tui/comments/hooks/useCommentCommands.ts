@@ -102,7 +102,7 @@ export function useCommentCommands() {
   );
 
   const helpActivate = useCallback(
-    (actionKey: string, editComment: () => void) => {
+    (actionKey: string, editComment: () => void, deleteComment: () => void) => {
       switch (actionKey) {
         case 'r':
           void queryClient.invalidateQueries({ queryKey: ['comments'] });
@@ -112,6 +112,9 @@ export function useCommentCommands() {
           break;
         case 'e':
           editComment();
+          break;
+        case 'd':
+          deleteComment();
           break;
         case '/':
           setInputMode('list-filter');

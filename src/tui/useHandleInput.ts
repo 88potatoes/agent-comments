@@ -19,6 +19,7 @@ interface UseHandleInputDeps {
   closeHelp: () => void;
   refresh: () => void;
   editComment: () => void;
+  deleteComment: () => void;
   quit: () => void;
 }
 
@@ -41,6 +42,7 @@ export function useHandleInput(deps: UseHandleInputDeps) {
     closeHelp,
     refresh,
     editComment,
+    deleteComment,
     quit,
   } = deps;
 
@@ -57,6 +59,7 @@ export function useHandleInput(deps: UseHandleInputDeps) {
           openHelp,
           refresh,
           editComment,
+          deleteComment,
           quit,
         });
         break;
@@ -87,6 +90,7 @@ export interface ListDeps {
   openHelp: () => void;
   refresh: () => void;
   editComment: () => void;
+  deleteComment: () => void;
   quit: () => void;
 }
 
@@ -114,6 +118,10 @@ export function handleListInput(
   }
   if (input === 'e') {
     deps.editComment();
+    return;
+  }
+  if (input === 'd') {
+    deps.deleteComment();
     return;
   }
   if (input === 'q' || input === 'Q') {

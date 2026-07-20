@@ -60,6 +60,7 @@ function makeListDeps(overrides: Partial<ListDeps> = {}): ListDeps {
     openHelp: vi.fn(),
     refresh: vi.fn(),
     editComment: vi.fn(),
+    deleteComment: vi.fn(),
     quit: vi.fn(),
     ...overrides,
   };
@@ -173,6 +174,12 @@ describe('handleListInput', () => {
       const deps = makeListDeps();
       handleListInput('e', listKey(), deps);
       expect(deps.editComment).toHaveBeenCalledOnce();
+    });
+
+    it('d calls deleteComment', () => {
+      const deps = makeListDeps();
+      handleListInput('d', listKey(), deps);
+      expect(deps.deleteComment).toHaveBeenCalledOnce();
     });
 
     it('q calls quit', () => {
@@ -394,13 +401,19 @@ describe('buildLocalKeymaps', () => {
     it('includes all actions when has comments and filter', () => {
       const entries = buildLocalKeymaps('list', true, true);
       const actions = entries.map((e) => e.action);
-      expect(actions).toEqual(['r', 'R', 'e', '/', 'Esc']);
+      expect(actions).toEqual(['r', 'R', 'e', 'd', '/', 'Esc']);
     });
 
-    it('excludes editor and clear filter when neither applies', () => {
+    it('excludes editor, delete, and clear filter when no comments/filter', () => {
       const entries = buildLocalKeymaps('list', false, false);
       const actions = entries.map((e) => e.action);
       expect(actions).toEqual(['r', 'R', '/']);
+    });
+
+    it('excludes delete when hasFilter but no comments', () => {
+      const entries = buildLocalKeymaps('list', true, false);
+      const actions = entries.map((e) => e.action);
+      expect(actions).toEqual(['r', 'R', '/', 'Esc']);
     });
   });
 
@@ -620,20 +633,20 @@ describe('useCommentCommands', () => {
       const { result } = renderCommands();
       const noopEdit = vi.fn();
 
-      act(() => result.current.helpActivate('R', noopEdit));
+      act(() => result.current.helpActivate('R', noopEdit, vi.fn()));
       expect(useTuiStore.getState().showResolved).toBe(false);
     });
 
     it('helpActivate / enters filter mode', () => {
       const { result } = renderCommands();
-      act(() => result.current.helpActivate('/', vi.fn()));
+      act(() => result.current.helpActivate('/', vi.fn(), vi.fn()));
       expect(useTuiStore.getState().inputMode).toBe('list-filter');
     });
 
     it('helpActivate Esc clears filter', () => {
       useTuiStore.setState({ filter: 'src', hoveredCommentIndex: 3 });
       const { result } = renderCommands();
-      act(() => result.current.helpActivate('Esc', vi.fn()));
+      act(() => result.current.helpActivate('Esc', vi.fn(), vi.fn()));
       const s = useTuiStore.getState();
       expect(s.filter).toBe('');
       expect(s.hoveredCommentIndex).toBe(0);
@@ -642,8 +655,15 @@ describe('useCommentCommands', () => {
     it('helpActivate e calls editComment callback', () => {
       const { result } = renderCommands();
       const editComment = vi.fn();
-      act(() => result.current.helpActivate('e', editComment));
+      act(() => result.current.helpActivate('e', editComment, vi.fn()));
       expect(editComment).toHaveBeenCalledOnce();
+    });
+
+    it('helpActivate d calls deleteComment callback', () => {
+      const { result } = renderCommands();
+      const deleteComment = vi.fn();
+      act(() => result.current.helpActivate('d', vi.fn(), deleteComment));
+      expect(deleteComment).toHaveBeenCalledOnce();
     });
 
     it('helpActivate q exits process (skip — tested via handler)', () => {

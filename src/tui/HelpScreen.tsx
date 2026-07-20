@@ -43,6 +43,7 @@ export function buildLocalKeymaps(
 
   if (hasComments) {
     entries.push({ keys: 'e', description: 'Open in editor', action: 'e' });
+    entries.push({ keys: 'd', description: 'Delete comment', action: 'd' });
   }
 
   entries.push({ keys: '/', description: 'Filter comments', action: '/' });
