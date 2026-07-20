@@ -7,6 +7,7 @@ import {
 } from "./comments.domain.ts";
 import { CommentRepo } from "./repo.ts";
 import { fetchPrComments, type ImportResult } from "./gh-import.ts";
+import { githubClient } from "./github-client.ts";
 
 export class CommentService {
   private constructor() {}
@@ -20,8 +21,36 @@ export class CommentService {
   async getAllComments(filter?: {
     file?: string;
     status?: CommentStatus;
+    includeGitRemote?: string;
   }): Promise<CommentEntity[]> {
-    return this.commentsRepo.queryComments(filter ?? {});
+    const local = await this.commentsRepo.queryComments(filter ?? {});
+
+    if (!filter?.includeGitRemote) return local;
+
+    const { owner, repo, prNumber } =
+      githubClient.parsePrReference(filter.includeGitRemote);
+    const ghComments = githubClient.fetchPrComments(owner, repo, prNumber);
+    const prUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}`;
+
+    const remoteEntities: CommentEntity[] = ghComments.map((gh) => {
+      const line = gh.line ?? gh.original_line ?? 0;
+      return {
+        id: `gh-${gh.id}`,
+        file: gh.path,
+        startLine: line,
+        endLine: line,
+        message: gh.body || "(no comment body)",
+        status: CommentStatus.Active,
+        source: CommentSource.GitHub,
+        externalId: gh.id,
+        author: gh.user?.login ?? null,
+        url: gh.html_url,
+        createdAt: gh.created_at,
+        updatedAt: gh.updated_at,
+      };
+    });
+
+    return [...local, ...remoteEntities];
   }
 
   async addComment(

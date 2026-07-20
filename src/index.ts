@@ -4,7 +4,6 @@ import React from "react";
 
 import { CommentSource, CommentStatus } from "./comments/comments.domain.ts";
 import { commentService } from "./comments/service.ts";
-import { parsePrReference } from "./comments/gh-import.ts";
 import { getDbPath } from "./lib/db.ts";
 import { formatDefault, formatJson, formatGraph, wordWrap } from "./lib/format.ts";
 import { LineRangeType, parseLineInput } from "./lib/helpers.ts";
@@ -159,6 +158,9 @@ program
       } else if (options.status) {
         throw new Error(`Invalid status: "${options.status}". Use resolved, active, draft, or all.`);
       }
+      if (options.gh) {
+        filter.includeGitRemote = options.gh;
+      }
 
       const comments = await commentService.getAllComments(filter);
 
@@ -199,26 +201,6 @@ program
   );
 
 const debug = program.command("debug").description("Debug commands");
-
-const importCmd = program
-  .command("import")
-  .description("Import comments from external sources");
-
-importCmd
-  .command("github <pr>")
-  .description("Import PR review comments from GitHub. <pr> can be a PR number or full URL.")
-  .action(
-    wrap(async (pr: string) => {
-      const { owner, repo, prNumber } = parsePrReference(pr);
-      console.log(`Fetching comments from ${owner}/${repo}#${prNumber}...`);
-      const result = await commentService.importGitHubComments(owner, repo, prNumber);
-      const summary =
-        result.imported === 0 && result.skipped === 0
-          ? "No comments found."
-          : `Imported ${result.imported}, skipped ${result.skipped} (already present).`;
-      console.log(summary);
-    }),
-  );
 
 debug
   .command("pwd")
