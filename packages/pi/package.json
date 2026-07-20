@@ -1,0 +1,13 @@
+{
+  "name": "@88potatoes/agent-comments-pi",
+  "version": "0.1.0",
+  "description": "/address command for Pi — fetch agent-comments and send them to the agent",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  }
+}
