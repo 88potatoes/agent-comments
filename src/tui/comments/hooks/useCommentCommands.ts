@@ -16,9 +16,12 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTuiStore } from '../../store.ts';
 import { openInEditor } from '../../openInEditor.ts';
+import { useMutateDeleteComment } from '../../hooks/comments/useMutateDeleteComment.ts';
+import type { CommentRowViewModel } from '../view-model.ts';
 
-export function useCommentCommands() {
+export function useCommentCommands(rows: CommentRowViewModel[]) {
   const queryClient = useQueryClient();
+  const deleteMutation = useMutateDeleteComment();
 
   // ── state reads ─────────────────────────────────────────────
 
@@ -35,6 +38,18 @@ export function useCommentCommands() {
   const setHoveredHelpIndex = useTuiStore((s) => s.setHoveredHelpIndex);
   const setInputMode = useTuiStore((s) => s.setInputMode);
   const toggleShowResolved = useTuiStore((s) => s.toggleShowResolved);
+
+  // ── side-effect commands (need view model rows) ────────────
+
+  const editComment = useCallback(() => {
+    const row = rows[hoveredCommentIndex];
+    if (row) openInEditor(row.file, row.startLine);
+  }, [rows, hoveredCommentIndex]);
+
+  const deleteComment = useCallback(() => {
+    const row = rows[hoveredCommentIndex];
+    if (row) deleteMutation.mutate(row.id);
+  }, [rows, hoveredCommentIndex, deleteMutation]);
 
   // ── list navigation (no clamping — view model handles it) ───
 
@@ -102,7 +117,7 @@ export function useCommentCommands() {
   );
 
   const helpActivate = useCallback(
-    (actionKey: string, editComment: () => void, deleteComment: () => void) => {
+    (actionKey: string) => {
       switch (actionKey) {
         case 'r':
           void queryClient.invalidateQueries({ queryKey: ['comments'] });
@@ -133,7 +148,7 @@ export function useCommentCommands() {
           break;
       }
     },
-    [queryClient, toggleShowResolved, setInputMode, applyPatch],
+    [queryClient, toggleShowResolved, editComment, deleteComment, setInputMode, applyPatch],
   );
 
   // ── side effects ────────────────────────────────────────────
@@ -174,6 +189,8 @@ export function useCommentCommands() {
     helpMoveUp,
     helpMoveDown,
     helpActivate,
+    editComment,
+    deleteComment,
     refresh,
     quit,
   };

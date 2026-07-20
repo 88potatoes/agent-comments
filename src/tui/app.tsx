@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text, useFocus } from 'ink';
 import { GlobalProviders } from './GlobalProviders.tsx';
 import { CommentList } from './comments/components/CommentList.tsx';
@@ -6,51 +6,21 @@ import { HelpScreen } from './HelpScreen.tsx';
 import { useHandleInput } from './useHandleInput.ts';
 import { useCommentCommands } from './comments/hooks/useCommentCommands.ts';
 import { useCommentListViewModel } from './comments/hooks/useCommentListViewModel.ts';
-import { useMutateDeleteComment } from './hooks/comments/useMutateDeleteComment.ts';
-import { openInEditor } from './openInEditor.ts';
 
 // ── App ───────────────────────────────────────────────────────────
 
 const AppInner: React.FC = () => {
   const { isFocused } = useFocus();
-
-  // ── data ─────────────────────────────────────────────────────────
-
   const { vm } = useCommentListViewModel();
+  const commands = useCommentCommands(vm.rows);
 
-  // ── commands (zero data params — all state from store) ───────────
-
-  const commands = useCommentCommands();
-
-  // ── edit comment (wired from view model, not in commands) ────────
-
-  const editComment = useCallback(() => {
-    const row = vm.rows[commands.hoveredCommentIndex];
-    if (row) openInEditor(row.file, row.startLine);
-  }, [vm.rows, commands.hoveredCommentIndex]);
-
-  // ── delete comment ───────────────────────────────────────────────
-
-  const deleteMutation = useMutateDeleteComment();
-
-  const deleteComment = useCallback(() => {
-    const row = vm.rows[commands.hoveredCommentIndex];
-    if (row) deleteMutation.mutate(row.id);
-  }, [vm.rows, commands.hoveredCommentIndex, deleteMutation]);
-
-  // ── keyboard input ───────────────────────────────────────────────
-
-  useHandleInput({ ...commands, editComment, deleteComment });
-
-  // ── invalidate on focus ──────────────────────────────────────────
+  useHandleInput(commands);
 
   useEffect(() => {
     if (isFocused) {
       commands.refresh();
     }
   }, [isFocused, commands.refresh]);
-
-  // ── render ───────────────────────────────────────────────────────
 
   return (
     <Box flexDirection="column">
@@ -66,7 +36,7 @@ const AppInner: React.FC = () => {
             onClose={commands.closeHelp}
             onMoveUp={commands.helpMoveUp}
             onMoveDown={commands.helpMoveDown}
-            onActivate={(key) => commands.helpActivate(key, editComment, deleteComment)}
+            onActivate={(key) => commands.helpActivate(key)}
           />
         </>
       )}
