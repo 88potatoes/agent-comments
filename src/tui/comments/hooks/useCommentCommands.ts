@@ -30,6 +30,7 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
   const filter = useTuiStore((s) => s.filter);
   const inputMode = useTuiStore((s) => s.inputMode);
   const showResolved = useTuiStore((s) => s.showResolved);
+  const showGitHub = useTuiStore((s) => s.showGitHub);
 
   // ── setters ─────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
   const setHoveredHelpIndex = useTuiStore((s) => s.setHoveredHelpIndex);
   const setInputMode = useTuiStore((s) => s.setInputMode);
   const toggleShowResolved = useTuiStore((s) => s.toggleShowResolved);
+  const toggleShowGitHub = useTuiStore((s) => s.toggleShowGitHub);
 
   // ── side-effect commands (need view model rows) ────────────
 
@@ -125,6 +127,9 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
         case 'R':
           toggleShowResolved();
           break;
+        case 'G':
+          toggleShowGitHub();
+          break;
         case 'e':
           editComment();
           break;
@@ -148,7 +153,7 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
           break;
       }
     },
-    [queryClient, toggleShowResolved, editComment, deleteComment, setInputMode, applyPatch],
+    [queryClient, toggleShowResolved, toggleShowGitHub, editComment, deleteComment, setInputMode, applyPatch],
   );
 
   // ── side effects ────────────────────────────────────────────
@@ -172,6 +177,7 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
     hoveredHelpIndex,
     filter,
     showResolved,
+    showGitHub,
     hasFilter,
 
     // commands
@@ -180,6 +186,7 @@ export function useCommentCommands(rows: CommentRowViewModel[]) {
     openFilter,
     clearFilter,
     toggleResolved: toggleShowResolved,
+    toggleShowGitHub,
     filterType,
     filterBackspace,
     filterApply,

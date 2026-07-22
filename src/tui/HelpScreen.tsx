@@ -40,6 +40,7 @@ export function buildLocalKeymaps(
 
   entries.push({ keys: 'r', description: 'Refresh comments', action: 'r' });
   entries.push({ keys: 'R', description: 'Toggle resolved visibility', action: 'R' });
+  entries.push({ keys: 'G', description: 'Toggle GitHub comments', action: 'G' });
 
   if (hasComments) {
     entries.push({ keys: 'e', description: 'Open in editor', action: 'e' });

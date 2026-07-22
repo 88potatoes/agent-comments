@@ -58,6 +58,7 @@ function makeListDeps(overrides: Partial<ListDeps> = {}): ListDeps {
     openFilter: vi.fn(),
     clearFilter: vi.fn(),
     toggleResolved: vi.fn(),
+    toggleShowGitHub: vi.fn(),
     openHelp: vi.fn(),
     refresh: vi.fn(),
     editComment: vi.fn(),
@@ -201,6 +202,12 @@ describe('handleListInput', () => {
       const deps = makeListDeps();
       handleListInput('R', listKey(), deps);
       expect(deps.toggleResolved).toHaveBeenCalledOnce();
+    });
+
+    it('G calls toggleShowGitHub', () => {
+      const deps = makeListDeps();
+      handleListInput('G', listKey(), deps);
+      expect(deps.toggleShowGitHub).toHaveBeenCalledOnce();
     });
 
     it('/ calls openFilter', () => {
@@ -402,19 +409,19 @@ describe('buildLocalKeymaps', () => {
     it('includes all actions when has comments and filter', () => {
       const entries = buildLocalKeymaps('list', true, true);
       const actions = entries.map((e) => e.action);
-      expect(actions).toEqual(['r', 'R', 'e', 'd', '/', 'Esc']);
+      expect(actions).toEqual(['r', 'R', 'G', 'e', 'd', '/', 'Esc']);
     });
 
     it('excludes editor, delete, and clear filter when no comments/filter', () => {
       const entries = buildLocalKeymaps('list', false, false);
       const actions = entries.map((e) => e.action);
-      expect(actions).toEqual(['r', 'R', '/']);
+      expect(actions).toEqual(['r', 'R', 'G', '/']);
     });
 
     it('excludes delete when hasFilter but no comments', () => {
       const entries = buildLocalKeymaps('list', true, false);
       const actions = entries.map((e) => e.action);
-      expect(actions).toEqual(['r', 'R', '/', 'Esc']);
+      expect(actions).toEqual(['r', 'R', 'G', '/', 'Esc']);
     });
   });
 
@@ -632,9 +639,7 @@ describe('useCommentCommands', () => {
 
     it('helpActivate R toggles showResolved', () => {
       const { result } = renderCommands();
-      const noopEdit = vi.fn();
-
-      act(() => result.current.helpActivate('R', noopEdit, vi.fn()));
+      act(() => result.current.helpActivate('R'));
       expect(useTuiStore.getState().showResolved).toBe(false);
     });
 
