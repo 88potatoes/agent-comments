@@ -23,6 +23,7 @@ export type CommentListViewModel = {
   totalCount: number;
   filter: string;
   showResolved: boolean;
+  showGitHub: boolean;
   isFilterMode: boolean;
   rows: CommentRowViewModel[];
 };

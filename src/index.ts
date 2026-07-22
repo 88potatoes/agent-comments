@@ -197,6 +197,9 @@ program
         { alternateScreen: true }
       );
       await waitUntilExit();
+
+      /// i added a comment
+
     }),
   );
 
