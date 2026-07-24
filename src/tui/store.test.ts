@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

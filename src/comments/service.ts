@@ -30,7 +30,6 @@ export class CommentService {
     const { owner, repo, prNumber } =
       githubClient.parsePrReference(filter.includeGitRemote);
     const ghComments = githubClient.fetchPrComments(owner, repo, prNumber);
-    const prUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}`;
 
     const remoteEntities: CommentEntity[] = ghComments.map((gh) => {
       const line = gh.line ?? gh.original_line ?? 0;
@@ -110,7 +109,6 @@ export class CommentService {
     prNumber: number,
   ): Promise<ImportResult> {
     const ghComments = fetchPrComments(owner, repo, prNumber);
-    const prUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}`;
 
     let imported = 0;
     let skipped = 0;
