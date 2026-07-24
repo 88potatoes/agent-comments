@@ -2,8 +2,9 @@ import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
 
-import { CommentSource, CommentStatus } from "./comments/comments.domain.ts";
+import { CommentStatus } from "./comments/comments.domain.ts";
 import { commentService } from "./comments/service.ts";
+import { githubClient } from "./comments/github-client.ts";
 import { getDbPath } from "./lib/db.ts";
 import { formatDefault, formatJson, formatGraph, wordWrap } from "./lib/format.ts";
 import { LineRangeType, parseLineInput } from "./lib/helpers.ts";
@@ -139,6 +140,7 @@ program
   .option("-f, --file <file>", "Filter by file path")
   .option("-s, --status <status>", "Filter by status: resolved, active, draft, or all (default: active)")
   .option("--view <view>", "Output format: default, graph, or json", "default")
+  .option("-r, --remote [ref]", "Include GitHub PR comments (URL, PR number, or auto-detect from current branch)")
   .action(
     wrap(async (options) => {
       const filter: { file?: string; status?: CommentStatus } = {
@@ -158,8 +160,13 @@ program
       } else if (options.status) {
         throw new Error(`Invalid status: "${options.status}". Use resolved, active, draft, or all.`);
       }
-      if (options.gh) {
-        filter.includeGitRemote = options.gh;
+      if (options.remote) {
+        if (options.remote === true) {
+          const ref = githubClient.getCurrentBranchPrRef();
+          filter.includeGitRemote = String(ref.prNumber);
+        } else {
+          filter.includeGitRemote = options.remote;
+        }
       }
 
       const comments = await commentService.getAllComments(filter);

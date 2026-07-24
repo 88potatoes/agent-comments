@@ -93,6 +93,23 @@ export class GitHubClient {
     );
   }
 
+  /** Detect the PR number for the current branch via gh CLI. */
+  getCurrentBranchPrRef(): GhPrReference {
+    this.ensureAuth();
+    const remote = this.getDefaultRemote();
+    try {
+      const prNumber = execSync("gh pr view --json number --jq .number", {
+        encoding: "utf-8",
+        stdio: "pipe",
+      }).trim();
+      return { ...remote, prNumber: Number(prNumber) };
+    } catch {
+      throw new Error(
+        "Could not find an open PR for the current branch. Is there one on GitHub?",
+      );
+    }
+  }
+
   /** Derive owner/repo from git remote origin. */
   getDefaultRemote(): { owner: string; repo: string } {
     try {
