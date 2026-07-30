@@ -11,10 +11,11 @@
   "author": "",
   "type": "module",
   "bin": {
-    "agent-comments": "src/index.ts",
-    "aco": "src/index.ts"
+    "agent-comments": "bin/agent-comments.mjs",
+    "aco": "bin/agent-comments.mjs"
   },
   "files": [
+    "bin/",
     "src/",
     "drizzle/",
     "package.json",
