@@ -10,7 +10,7 @@ export class CommentRepo {
   public static readonly instance = new CommentRepo();
 
   async getCommentById(id: string): Promise<CommentEntity> {
-    const row = db.select().from(comments).where(eq(comments.id, id)).get();
+    const [row] = await db.select().from(comments).where(eq(comments.id, id));
     if (!row) {
       throw new Error(`Comment with id ${id} not found`);
     }
@@ -21,11 +21,10 @@ export class CommentRepo {
     const normalized = input.replace(/-/g, "").toLowerCase();
     const pattern = normalized + "%";
 
-    const rows = db
+    const rows = await db
       .select({ id: comments.id })
       .from(comments)
-      .where(sql`REPLACE(LOWER(${comments.id}), '-', '') LIKE ${pattern}`)
-      .all();
+      .where(sql`REPLACE(LOWER(${comments.id}), '-', '') LIKE ${pattern}`);
 
     if (rows.length === 0) {
       throw new Error(`No comment found matching id "${input}"`);
@@ -41,7 +40,7 @@ export class CommentRepo {
   }
 
   async getAllComments(): Promise<CommentEntity[]> {
-    const rows = db.select().from(comments).all();
+    const rows = await db.select().from(comments);
     return rows.map((r) => this.toDomain(r));
   }
 
@@ -62,7 +61,7 @@ export class CommentRepo {
       query.where(and(...conditions));
     }
 
-    const rows = query.all();
+    const rows = await query;
     return rows.map((r) => this.toDomain(r));
   }
 
@@ -70,22 +69,20 @@ export class CommentRepo {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
 
-    db.insert(comments)
-      .values({
-        id,
-        file: input.file,
-        startLine: input.startLine,
-        endLine: input.endLine,
-        message: input.message,
-        status: input.status,
-        source: input.source ?? "local",
-        externalId: input.externalId ?? null,
-        author: input.author ?? null,
-        url: input.url ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
+    await db.insert(comments).values({
+      id,
+      file: input.file,
+      startLine: input.startLine,
+      endLine: input.endLine,
+      message: input.message,
+      status: input.status,
+      source: input.source ?? "local",
+      externalId: input.externalId ?? null,
+      author: input.author ?? null,
+      url: input.url ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return this.toDomain({
       id,
@@ -110,7 +107,8 @@ export class CommentRepo {
     const { id, ...updates } = input;
     const merged = { ...existing, ...updates, updatedAt: now };
 
-    db.update(comments)
+    await db
+      .update(comments)
       .set({
         file: merged.file,
         startLine: merged.startLine,
@@ -123,23 +121,21 @@ export class CommentRepo {
         url: merged.url,
         updatedAt: merged.updatedAt,
       })
-      .where(eq(comments.id, id))
-      .run();
+      .where(eq(comments.id, id));
 
     return this.toDomain(merged);
   }
 
   async deleteComment(id: string): Promise<void> {
     await this.getCommentById(id);
-    db.delete(comments).where(eq(comments.id, id)).run();
+    await db.delete(comments).where(eq(comments.id, id));
   }
 
   async findByExternalId(externalId: number): Promise<CommentEntity | null> {
-    const row = db
+    const [row] = await db
       .select()
       .from(comments)
-      .where(eq(comments.externalId, externalId))
-      .get();
+      .where(eq(comments.externalId, externalId));
     return row ? this.toDomain(row) : null;
   }
 

@@ -3,9 +3,9 @@ import { mkdirSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 import * as schema from "../db/schema.ts";
 
 export { schema };
@@ -33,15 +33,8 @@ export function getDbPath(): string {
   return join(dir, `${name}.sqlite`);
 }
 
-const dbPath = getDbPath();
 export { getRepoRoot };
 
-const sqlite: Database = new Database(dbPath);
-
-// WAL mode for better concurrent reads
-sqlite.pragma("journal_mode = WAL");
-
-// ---- Drizzle migrations ----
 function getMigrationsFolder(): string {
   try {
     const __filename = fileURLToPath(import.meta.url);
@@ -54,13 +47,14 @@ function getMigrationsFolder(): string {
   return join(process.cwd(), "drizzle");
 }
 
-// Wrap with drizzle. On first run, migrate() auto-creates the schema
-// via the drizzle migration files shipped in the package.
-export const db = drizzle(sqlite, { schema });
+const dbPath = getDbPath();
+const client = createClient({ url: `file:${dbPath}` });
+
+export const db: LibSQLDatabase<typeof schema> = drizzle(client, { schema });
 
 const migrationsFolder = getMigrationsFolder();
 try {
-  migrate(db, { migrationsFolder });
+  await migrate(db, { migrationsFolder });
 } catch (err) {
   if (
     err instanceof Error &&

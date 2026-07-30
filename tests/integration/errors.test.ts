@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import Database from "better-sqlite3";
+import { createClient } from "@libsql/client";
 import { rmSync } from "fs";
 import { createTempRepo, cli, cleanupDb } from "./helpers";
 
@@ -21,16 +21,18 @@ describe("error cases", () => {
     expect(() => cli(["delete", "deadbeef"], dir)).toThrow("No comment found");
   });
 
-  it("fails when short id is ambiguous", () => {
+  it("fails when short id is ambiguous", async () => {
     const dbPath = cli(["debug", "pwd"], dir);
-    const testDb = new Database(dbPath);
+    const testDb = createClient({ url: `file:${dbPath}` });
     const now = new Date().toISOString();
-    testDb
-      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run("aaaaaa00-0000-0000-0000-000000000000", "src/main.ts", 11, 11, "aaa comment", "active", "local", null, null, null, now, now);
-    testDb
-      .prepare("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run("aaaabb00-0000-0000-0000-000000000000", "src/main.ts", 22, 22, "aab comment", "active", "local", null, null, null, now, now);
+    await testDb.execute({
+      sql: "INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: ["aaaaaa00-0000-0000-0000-000000000000", "src/main.ts", 11, 11, "aaa comment", "active", "local", null, null, null, now, now],
+    });
+    await testDb.execute({
+      sql: "INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: ["aaaabb00-0000-0000-0000-000000000000", "src/main.ts", 22, 22, "aab comment", "active", "local", null, null, null, now, now],
+    });
     testDb.close();
     expect(() => cli(["resolve", "aaa"], dir)).toThrow("Ambiguous");
   });
