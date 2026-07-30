@@ -7,7 +7,7 @@ set -euo pipefail
 
 COUNT="${1:-30}"
 REPO_ROOT="${2:-$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")}"
-ACO="node $(dirname "$0")/../dist/agent-comments.mjs"
+ACO="npx tsx $(dirname "$0")/../src/index.ts"
 
 # ── pick source files, groups by path length ─────────────────────────
 
