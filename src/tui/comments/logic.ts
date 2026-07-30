@@ -4,7 +4,7 @@
 // Output: view models (server state + client state merged, no layout)
 
 import Fuse from 'fuse.js';
-import { CommentStatus } from '../../comments/comments.domain.ts';
+import { CommentSource, CommentStatus } from '../../comments/comments.domain.ts';
 import type { CommentEntity } from '../../comments/comments.domain.ts';
 import type { TuiState } from '../store.ts';
 import { statusIcon, statusColor } from '../helpers.tsx';
@@ -33,10 +33,14 @@ export function filterComments(
   comments: CommentEntity[],
   filter: string,
   showResolved: boolean,
+  showGitHub: boolean,
 ): CommentEntity[] {
   let result = fuzzyFilter(comments, filter);
   if (!showResolved) {
     result = result.filter((c) => c.status !== CommentStatus.Resolved);
+  }
+  if (!showGitHub) {
+    result = result.filter((c) => c.source !== CommentSource.GitHub);
   }
   return result;
 }
@@ -68,7 +72,7 @@ export function toCommentListViewModel(
   comments: CommentEntity[],
   state: TuiState,
 ): CommentListViewModel {
-  const filtered = filterComments(comments, state.filter, state.showResolved);
+  const filtered = filterComments(comments, state.filter, state.showResolved, state.showGitHub);
 
   // rows — all filtered, with selection marker (clamped both sides)
   const clampedIndex = Math.max(0, Math.min(state.hoveredCommentIndex, Math.max(0, filtered.length - 1)));
@@ -80,6 +84,7 @@ export function toCommentListViewModel(
     totalCount: filtered.length,
     filter: state.filter,
     showResolved: state.showResolved,
+    showGitHub: state.showGitHub,
     isFilterMode: state.inputMode === 'list-filter',
     rows,
   };

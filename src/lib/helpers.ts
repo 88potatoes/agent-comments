@@ -10,7 +10,7 @@ export function parseLineInput(input: string): LineRange {
   const trimmed = input.trim();
 
   // range: "12:20" or "12-20"
-  const rangeMatch = trimmed.match(/^(\d+)\s*[:\-]\s*(\d+)$/);
+  const rangeMatch = trimmed.match(/^(\d+)\s*[:-]\s*(\d+)$/);
   if (rangeMatch) {
     const startLine = Number(rangeMatch[1]);
     const endLine = Number(rangeMatch[2]);

@@ -11,6 +11,7 @@ export type TuiState = {
   hoveredHelpIndex: number;
   filter: string;
   showResolved: boolean;
+  showGitHub: boolean;
 };
 
 export type TuiKey = {
@@ -32,6 +33,7 @@ interface TuiActions {
   setFilter: (filter: string) => void;
   setHoveredCommentIndex: (hoveredCommentIndex: number) => void;
   toggleShowResolved: () => void;
+  toggleShowGitHub: () => void;
   applyPatch: (patch: Partial<TuiState>) => void;
 }
 
@@ -52,6 +54,7 @@ const initialState: TuiState = {
   hoveredHelpIndex: 0,
   filter: '',
   showResolved: settings.showResolved,
+  showGitHub: settings.showGitHub,
 };
 
 // ── store ──────────────────────────────────────────────────────
@@ -64,6 +67,7 @@ export const useTuiStore = create<TuiState & TuiActions>((set) => ({
   setHoveredCommentIndex: (hoveredCommentIndex) => set({ hoveredCommentIndex }),
   setHoveredHelpIndex: (hoveredHelpIndex) => set({ hoveredHelpIndex }),
   toggleShowResolved: () => set((s) => ({ showResolved: !s.showResolved, hoveredCommentIndex: 0 })),
+  toggleShowGitHub: () => set((s) => ({ showGitHub: !s.showGitHub, hoveredCommentIndex: 0 })),
   applyPatch: (patch) => set(patch),
 }));
 
@@ -72,5 +76,8 @@ export const useTuiStore = create<TuiState & TuiActions>((set) => ({
 useTuiStore.subscribe((state, prev) => {
   if (state.showResolved !== prev.showResolved) {
     saveSettings({ showResolved: state.showResolved });
+  }
+  if (state.showGitHub !== prev.showGitHub) {
+    saveSettings({ showGitHub: state.showGitHub });
   }
 });

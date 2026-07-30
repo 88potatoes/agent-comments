@@ -4,10 +4,12 @@ import { getDbPath } from '../lib/db.ts';
 
 export type TuiSettings = {
   showResolved: boolean;
+  showGitHub: boolean;
 };
 
 const defaults: TuiSettings = {
   showResolved: true,
+  showGitHub: false,
 };
 
 function settingsPath(): string {

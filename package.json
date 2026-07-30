@@ -26,6 +26,8 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --external:@tanstack/react-query --external:drizzle-orm --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
     "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --external:@tanstack/react-query --external:drizzle-orm --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node' --watch",
+    "dev:debug": "AGENT_COMMENTS_DEBUG=1 node --watch-path=./dist ./dist/agent-comments.mjs tui",
+    "dev:log": "tail -f tmp/ac-debug.log",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint",

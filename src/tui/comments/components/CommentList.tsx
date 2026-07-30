@@ -44,8 +44,9 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
   const emptyMessage = useMemo(() => {
     if (vm.filter) return '  No matching comments';
     if (!vm.showResolved) return '  No matching comments';
+    if (!vm.showGitHub) return '  No matching comments';
     return '  No comments yet';
-  }, [vm.filter, vm.showResolved]);
+  }, [vm.filter, vm.showResolved, vm.showGitHub]);
 
   // ── render ─────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export const CommentList: React.FC<CommentListProps> = ({ vm }) => {
         <Text dimColor>  [? actions]</Text>
         {vm.filter ? <Text color="yellow">  filter: "{vm.filter}"</Text> : null}
         {!vm.showResolved && <Text color="yellow">  hiding resolved</Text>}
+        {!vm.showGitHub && <Text color="yellow">  hiding github</Text>}
       </Box>
 
       {/* column header */}

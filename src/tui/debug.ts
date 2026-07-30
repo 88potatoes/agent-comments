@@ -12,7 +12,7 @@ if (LOG_FILE) {
     mkdirSync(dirname(LOG_FILE), { recursive: true });
     writeFileSync(LOG_FILE, '');
   } catch (e) {
-    process.stderr.write(`[debug] failed to init log file: ${e}\n`);
+    process.stderr.write(`[debug] failed to init log file: ${String(e)}\n`);
   }
 }
 

@@ -11,6 +11,7 @@ interface UseHandleInputDeps {
   openFilter: () => void;
   clearFilter: () => void;
   toggleResolved: () => void;
+  toggleShowGitHub: () => void;
   filterType: (char: string) => void;
   filterBackspace: () => void;
   filterApply: () => void;
@@ -34,6 +35,7 @@ export function useHandleInput(deps: UseHandleInputDeps) {
     openFilter,
     clearFilter,
     toggleResolved,
+    toggleShowGitHub,
     filterType,
     filterBackspace,
     filterApply,
@@ -56,6 +58,7 @@ export function useHandleInput(deps: UseHandleInputDeps) {
           openFilter,
           clearFilter,
           toggleResolved,
+          toggleShowGitHub,
           openHelp,
           refresh,
           editComment,
@@ -87,6 +90,7 @@ export interface ListDeps {
   openFilter: () => void;
   clearFilter: () => void;
   toggleResolved: () => void;
+  toggleShowGitHub: () => void;
   openHelp: () => void;
   refresh: () => void;
   editComment: () => void;
@@ -132,6 +136,10 @@ export function handleListInput(
   // toggles / mode switches
   if (input === 'R') {
     deps.toggleResolved();
+    return;
+  }
+  if (input === 'G') {
+    deps.toggleShowGitHub();
     return;
   }
   if (input === '/') {

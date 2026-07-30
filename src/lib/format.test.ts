@@ -85,24 +85,31 @@ describe("wordWrap", () => {
 // ── formatDefault ──────────────────────────────────────────────────────
 
 describe("formatDefault", () => {
-  it("formats comments as tab-delimited lines", () => {
+  it("formats comments as table with aligned columns", () => {
     const output = formatDefault(sampleComments);
     const lines = output.split("\n");
     expect(lines).toHaveLength(4);
     // local comment: source icon is space, no author
-    expect(lines[1]).toContain(
-      "550e8400\t \tsrc/foo.ts:1-5\tfix this\tactive",
-    );
+    expect(lines[1]).toContain("550e8400");
+    expect(lines[1]).toContain("src/foo.ts:1-5");
+    expect(lines[1]).toContain("fix this");
+    expect(lines[1]).toContain("active");
     // github comment: source icon + @author
-    expect(lines[2]).toContain(
-      "660e8400\t @octocat\tsrc/bar.ts:10-10\tdone\tresolved",
-    );
+    expect(lines[2]).toContain("660e8400");
+    expect(lines[2]).toContain(" @octocat");
+    expect(lines[2]).toContain("src/bar.ts:10");
+    expect(lines[2]).toContain("done");
+    expect(lines[2]).toContain("resolved");
   });
 
-  it("includes a header line", () => {
+  it("includes a header row", () => {
     const output = formatDefault(sampleComments);
     const lines = output.split("\n");
-    expect(lines[0]).toBe("ID\tSource\tFile:Line\tMessage\tStatus");
+    expect(lines[0]).toContain("ID");
+    expect(lines[0]).toContain("Source");
+    expect(lines[0]).toContain("File:Line");
+    expect(lines[0]).toContain("Message");
+    expect(lines[0]).toContain("Status");
   });
 
   it("returns empty string for no comments", () => {

@@ -1,4 +1,5 @@
 import { CommentEntity } from "../comments/comments.domain.ts";
+import { renderTable } from "./table.ts";
 
 export function wordWrap(text: string, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -27,15 +28,28 @@ export function wordWrap(text: string, maxWidth: number): string[] {
 }
 
 export function formatDefault(comments: CommentEntity[]): string {
-  const header = "ID\tSource\tFile:Line\tMessage\tStatus";
-  const body = comments
-    .map((c) => {
-      const sourceIcon = c.source === "github" ? "" : " ";
-      const author = c.author ? ` @${c.author}` : "";
-      return `${c.id.slice(0, 8)}\t${sourceIcon}${author}\t${c.file}:${c.startLine}-${c.endLine}\t${c.message}\t${c.status}`;
-    })
-    .join("\n");
-  return body.length > 0 ? `${header}\n${body}` : "";
+  const columns = [
+    { name: "ID", maxWidth: 8 },
+    { name: "Source" },
+    { name: "File:Line" },
+    { name: "Message" },
+    { name: "Status" },
+  ];
+  const data = comments.map((c) => {
+    const sourceIcon = c.source === "github" ? "" : " ";
+    const author = c.author ? ` @${c.author}` : "";
+    const lineLabel = c.startLine === c.endLine
+      ? `${c.startLine}`
+      : `${c.startLine}-${c.endLine}`;
+    return [
+      c.id.slice(0, 8),
+      `${sourceIcon}${author}`,
+      `${c.file}:${lineLabel}`,
+      c.message,
+      c.status,
+    ];
+  });
+  return data.length > 0 ? renderTable(columns, data) : "";
 }
 
 export function formatJson(comments: CommentEntity[]): string {
