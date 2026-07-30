@@ -11,11 +11,11 @@
   "author": "",
   "type": "module",
   "bin": {
-    "agent-comments": "dist/agent-comments.mjs",
-    "aco": "dist/agent-comments.mjs"
+    "agent-comments": "src/index.ts",
+    "aco": "src/index.ts"
   },
   "files": [
-    "dist/",
+    "src/",
     "drizzle/",
     "package.json",
     "README.md"
@@ -24,9 +24,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --external:@tanstack/react-query --external:drizzle-orm --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node'",
-    "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --jsx=automatic --external:better-sqlite3 --external:ink --external:react --external:@tanstack/react-query --external:drizzle-orm --outfile=dist/agent-comments.mjs --banner:js='#!/usr/bin/env node' --watch",
-    "dev:debug": "AGENT_COMMENTS_DEBUG=1 node --watch-path=./dist ./dist/agent-comments.mjs tui",
+    "dev": "tsx --watch src/index.ts tui",
+    "dev:debug": "AGENT_COMMENTS_DEBUG=1 tsx --watch src/index.ts tui",
     "dev:log": "tail -f tmp/ac-debug.log",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -36,7 +35,7 @@
     "format:check": "oxfmt --check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "prepublishOnly": "pnpm build && pnpm test",
+    "prepublishOnly": "pnpm test",
     "prepare": "husky",
     "publish:agent-comments": "bash scripts/publish.sh agent-comments",
     "publish:agent-comments-pi": "bash scripts/publish.sh agent-comments-pi"
@@ -49,7 +48,8 @@
     "fuse.js": "^7.5.0",
     "ink": "^7.1.1",
     "react": "^19.2.7",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "tsx": "^4.22.4"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
@@ -57,19 +57,16 @@
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "drizzle-kit": "^0.31.10",
-    "esbuild": "^0.28.1",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
     "oxlint-tsgolint": "^0.24.0",
-    "tsx": "^4.22.4",
     "vitest": "^4.1.9"
   },
   "packageManager": "pnpm@10.28.0",
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild",
       "better-sqlite3"
     ]
   }

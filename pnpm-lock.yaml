@@ -29,6 +29,9 @@ importers:
       react:
         specifier: ^19.2.7
         version: 19.2.7
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       zustand:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)
@@ -48,9 +51,6 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -66,9 +66,6 @@ importers:
       oxlint-tsgolint:
         specifier: ^0.24.0
         version: 0.24.0
-      tsx:
-        specifier: ^4.22.4
-        version: 4.22.4
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@26.0.0)(jsdom@29.1.1)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
