@@ -37,7 +37,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "prepublishOnly": "pnpm build && pnpm test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "publish:agent-comments": "bash scripts/publish.sh agent-comments",
+    "publish:agent-comments-pi": "bash scripts/publish.sh agent-comments-pi"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
