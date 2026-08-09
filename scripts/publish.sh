@@ -26,6 +26,17 @@ esac
 
 cd "$PKG_DIR"
 
+# Verify npm auth before making any changes
+if ! npm whoami &>/dev/null; then
+  echo "Not logged in to npm. Opening login..."
+  npm login
+fi
+NPM_USER=$(npm whoami 2>/dev/null) || {
+  echo "Error: npm login failed. Aborting."
+  exit 1
+}
+echo "Logged in to npm as: $NPM_USER"
+
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 echo "Current version: $CURRENT_VERSION"
 echo -n "Bump type? [patch|minor|major]: "
